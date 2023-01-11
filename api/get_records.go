@@ -22,7 +22,7 @@ func (a *API) GetRecords(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	record, err := a.records.GetRecord(
+	record, err := a.records.GetRecordById(
 		ctx,
 		int(idNumber),
 	)
