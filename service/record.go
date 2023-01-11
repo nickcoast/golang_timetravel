@@ -15,7 +15,7 @@ var ErrRecordAlreadyExists = errors.New("record already exists")
 type RecordService interface {
 
 	// GetRecord will retrieve an record.
-	GetRecord(ctx context.Context, id int) (entity.Record, error)
+	GetRecordById(ctx context.Context, id int) (entity.Record, error)
 
 	// CreateRecord will insert a new record.
 	//
@@ -40,7 +40,7 @@ func NewInMemoryRecordService() InMemoryRecordService {
 	}
 }
 
-func (s *InMemoryRecordService) GetRecord(ctx context.Context, id int) (entity.Record, error) {
+func (s *InMemoryRecordService) GetRecordById(ctx context.Context, id int) (entity.Record, error) {
 	record := s.data[id]
 	if record.ID == 0 {
 		return entity.Record{}, ErrRecordDoesNotExist
@@ -56,12 +56,12 @@ func (s *InMemoryRecordService) CreateRecord(ctx context.Context, record entity.
 		return ErrRecordIDInvalid
 	}
 
-	existingRecord := s.data[id]
+	existingRecord := s.data[id] // don't need this if relying on auto-increment primary key
 	if existingRecord.ID != 0 {
 		return ErrRecordAlreadyExists
 	}
 
-	s.data[id] = record
+	s.data[id] = record // creation
 	return nil
 }
 
@@ -80,4 +80,18 @@ func (s *InMemoryRecordService) UpdateRecord(ctx context.Context, id int, update
 	}
 
 	return entry.Copy(), nil
+}
+
+type SqlRecordService struct {
+	data map[int]entity.Record
+}
+
+func (s *SqlRecordService) GetRecordById(ctx context.Context, id int) (entity.Record, error) {
+	record := s.data[id]
+	if record.ID == 0 {
+		return entity.Record{}, ErrRecordDoesNotExist
+	}
+
+	record = record.Copy() // copy is necessary so modifations to the record don't change the stored record
+	return record, nil
 }
