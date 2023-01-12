@@ -1,4 +1,4 @@
-package main
+package entity
 
 // copied from https://github.com/benbjohnson/wtf/
 

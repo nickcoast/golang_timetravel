@@ -1,22 +1,25 @@
 package main
 
 import (
-	"context"	
+	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"os/user"
 	"path/filepath"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/nickcoast/timetravel/sqlite"
 	"github.com/temelpa/timetravel/api"
 	"github.com/temelpa/timetravel/entity"
 	"github.com/temelpa/timetravel/service"
+	"github.com/pelletier/go-toml"
 )
 
 // logError logs all non-nil errors
@@ -38,7 +41,7 @@ func main() {
 	if err := m.Run(ctx); err != nil {
 		m.Close()
 		fmt.Fprintln(os.Stderr, err)
-		wtf.ReportError(ctx, err)
+		entity.ReportError(ctx, err)
 		os.Exit(1)
 	}
 	// Wait for CTRL-C.
@@ -52,11 +55,29 @@ func main() {
 }
 
 type Main struct {
-	DB *entity.DB
-	HTTPServer *http.Server
+	Config 		Config
+	DB			*sqlite.DB
+	HTTPServer	*http.Server
+
+	InsuredService	entity.InsuredService
 }
 
-func NewServer()
+//func NewServer()
+
+// Close gracefully stops the program.
+func (m *Main) Close() error {
+	if m.HTTPServer != nil {
+		if err := m.HTTPServer.Close(); err != nil {
+			return err
+		}
+	}
+	if m.DB != nil {
+		if err := m.DB.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 
 func NewMain() *Main {
@@ -84,7 +105,7 @@ func NewMain() *Main {
 	log.Fatal(srv.ListenAndServe())
 
 	return &Main{
-		DB:	entity.NewDB("asdf"),
+		DB:	sqlite.NewDB("asdf"),
 		HTTPServer: srv,
 	}
 }
@@ -103,14 +124,11 @@ func (m *Main) Run(ctx context.Context) (err error) {
 		return fmt.Errorf("cannot open db: %w", err)
 	}
 
-	// Instantiate SQLite-backed services.
-	authService := sqlite.NewAuthService(m.DB)
-	dialService := sqlite.NewDialService(m.DB)
-	dialMembershipService := sqlite.NewDialMembershipService(m.DB)
-	userService := sqlite.NewUserService(m.DB)
+	// Instantiate SQLite-backed services.	
+	insuredService := sqlite.NewInsuredService(m.DB)
 
-	// Attach user service to Main for testing.
-	/* m.UserService = userService */
+	// Attach insured service to Main for testing.
+	m.InsuredService = insuredService
 
 	// Copy configuration settings to the HTTP server.
 /* 	m.HTTPServer.Addr = m.Config.HTTP.Addr
@@ -128,23 +146,54 @@ func (m *Main) Run(ctx context.Context) (err error) {
 	m.HTTPServer.UserService = userService */
 
 	// Start the HTTP server.
-	if err := m.HTTPServer.Open(); err != nil {
+	/* if err := m.HTTPServer.Open(); err != nil {
 		return err
-	}
+	} */
 
-	// If TLS enabled, redirect non-TLS connections to TLS.
-	if m.HTTPServer.UseTLS() {
-		go func() {
-			log.Fatal(http.ListenAndServeTLSRedirect(m.Config.HTTP.Domain))
-		}()
-	}
 
-	// Enable internal debug endpoints.
-	go func() { http.ListenAndServeDebug() }()
-
-	log.Printf("running: url=%q debug=http://localhost:6060 dsn=%q", m.HTTPServer.URL(), m.Config.DB.DSN)
+	//log.Printf("running: url=%q debug=http://localhost:6060 dsn=%q", m.HTTPServer.URL(), m.Config.DB.DSN)
 
 	return nil
+}
+
+const (
+	// DefaultConfigPath is the default path to the application configuration.
+	DefaultConfigPath = "~/code/go/temelpa/wtfd.conf"
+
+	// DefaultDSN is the default datasource name.
+	DefaultDSN = "~/code/go/temelpa/.wtfd/db"
+)
+
+// Config represents the CLI configuration file.
+type Config struct {
+	DB struct {
+		DSN string `toml:"dsn"`
+	} `toml:"db"`
+
+	HTTP struct {
+		Addr     string `toml:"addr"`
+		Domain   string `toml:"domain"`
+		HashKey  string `toml:"hash-key"`
+		BlockKey string `toml:"block-key"`
+	} `toml:"http"`
+}
+
+// DefaultConfig returns a new instance of Config with defaults set.
+func DefaultConfig() Config {
+	var config Config
+	config.DB.DSN = DefaultDSN
+	return config
+}
+
+// ReadConfigFile unmarshals config from
+func ReadConfigFile(filename string) (Config, error) {
+	config := DefaultConfig()
+	if buf, err := ioutil.ReadFile(filename); err != nil {
+		return config, err
+	} else if err := toml.Unmarshal(buf, &config); err != nil {
+		return config, err
+	}
+	return config, nil
 }
 
 // expand returns path using tilde expansion. This means that a file path that
