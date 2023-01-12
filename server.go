@@ -42,3 +42,7 @@ func main() {
 	log.Printf("listening on %s", address)
 	log.Fatal(srv.ListenAndServe())
 }
+
+type Main struct {
+	DB *DB
+}

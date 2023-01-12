@@ -42,7 +42,7 @@ func NewDB(dsn string) *DB {
 	return db
 }
 
-func (db *DB) Open(ctx context.Context) (err error) { // need ctx here or not?
+func (db *DB) Open() (err error) { // need ctx here or not?
 
 	if db.DSN == "" {
 		return fmt.Errorf("dsn required")
@@ -66,10 +66,9 @@ func (db *DB) Open(ctx context.Context) (err error) { // need ctx here or not?
 		return fmt.Errorf("foreign keys pragma: %w", err)
 	}
 
-	if err := db.migrate; err != nil {
+	if err := db.migrate(); err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}
-	
 
 	return nil
 }
@@ -155,7 +154,6 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 		now: db.Now().UTC().Truncate(time.Second),
 	}, nil
 }
-
 
 // Tx wraps the SQL Tx object to provide a timestamp at the start of the transaction.
 type Tx struct {
