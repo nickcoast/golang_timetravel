@@ -16,10 +16,10 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/nickcoast/timetravel/sqlite"
+	"github.com/pelletier/go-toml"
 	"github.com/temelpa/timetravel/api"
 	"github.com/temelpa/timetravel/entity"
 	"github.com/temelpa/timetravel/service"
-	"github.com/pelletier/go-toml"
 )
 
 // logError logs all non-nil errors
@@ -55,11 +55,11 @@ func main() {
 }
 
 type Main struct {
-	Config 		Config
-	DB			*sqlite.DB
-	HTTPServer	*http.Server
+	Config     Config
+	DB         *sqlite.DB
+	HTTPServer *http.Server
 
-	InsuredService	entity.InsuredService
+	InsuredService entity.InsuredService
 }
 
 //func NewServer()
@@ -79,7 +79,6 @@ func (m *Main) Close() error {
 	return nil
 }
 
-
 func NewMain() *Main {
 
 	router := mux.NewRouter()
@@ -87,7 +86,7 @@ func NewMain() *Main {
 	service := service.NewInMemoryRecordService()
 	api := api.NewAPI(&service)
 
-	apiRoute := router.PathPrefix("/api/v1").Subrouter()
+	apiRoute := router.PathPrefix("/api/v2").Subrouter()
 	apiRoute.Path("/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 		logError(err)
@@ -105,7 +104,7 @@ func NewMain() *Main {
 	log.Fatal(srv.ListenAndServe())
 
 	return &Main{
-		DB:	sqlite.NewDB("asdf"),
+		DB:         sqlite.NewDB("asdf"),
 		HTTPServer: srv,
 	}
 }
@@ -124,32 +123,31 @@ func (m *Main) Run(ctx context.Context) (err error) {
 		return fmt.Errorf("cannot open db: %w", err)
 	}
 
-	// Instantiate SQLite-backed services.	
+	// Instantiate SQLite-backed services.
 	insuredService := sqlite.NewInsuredService(m.DB)
 
 	// Attach insured service to Main for testing.
 	m.InsuredService = insuredService
 
 	// Copy configuration settings to the HTTP server.
-/* 	m.HTTPServer.Addr = m.Config.HTTP.Addr
-	m.HTTPServer.Domain = m.Config.HTTP.Domain
-	m.HTTPServer.HashKey = m.Config.HTTP.HashKey
-	m.HTTPServer.BlockKey = m.Config.HTTP.BlockKey
-	m.HTTPServer.GitHubClientID = m.Config.GitHub.ClientID
-	m.HTTPServer.GitHubClientSecret = m.Config.GitHub.ClientSecret */
+	/* 	m.HTTPServer.Addr = m.Config.HTTP.Addr
+	   	m.HTTPServer.Domain = m.Config.HTTP.Domain
+	   	m.HTTPServer.HashKey = m.Config.HTTP.HashKey
+	   	m.HTTPServer.BlockKey = m.Config.HTTP.BlockKey
+	   	m.HTTPServer.GitHubClientID = m.Config.GitHub.ClientID
+	   	m.HTTPServer.GitHubClientSecret = m.Config.GitHub.ClientSecret */
 
 	// Attach underlying services to the HTTP server.
-/* 	m.HTTPServer.AuthService = authService
-	m.HTTPServer.DialService = dialService
-	m.HTTPServer.DialMembershipService = dialMembershipService
-	m.HTTPServer.EventService = eventService
-	m.HTTPServer.UserService = userService */
+	/* 	m.HTTPServer.AuthService = authService
+	   	m.HTTPServer.DialService = dialService
+	   	m.HTTPServer.DialMembershipService = dialMembershipService
+	   	m.HTTPServer.EventService = eventService
+	   	m.HTTPServer.UserService = userService */
 
 	// Start the HTTP server.
 	/* if err := m.HTTPServer.Open(); err != nil {
 		return err
 	} */
-
 
 	//log.Printf("running: url=%q debug=http://localhost:6060 dsn=%q", m.HTTPServer.URL(), m.Config.DB.DSN)
 
