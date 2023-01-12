@@ -1,4 +1,4 @@
-package entity
+package sqlite_test
 
 import (
 	"flag"
@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 	
-	
+	"github.com/nickcoast/timetravel/sqlite"
 )
 
 var dump = flag.Bool("dump", false, "save work data")
@@ -18,7 +18,7 @@ func TestDB(t *testing.T) {
 }
 
 // MustOpenDB returns a new, open DB. Fatal on error.
-func MustOpenDB(tb testing.TB) *DB {
+func MustOpenDB(tb testing.TB) *sqlite.DB {
 	tb.Helper()
 
 	// Write to an in-memory database by default.
@@ -33,7 +33,7 @@ func MustOpenDB(tb testing.TB) *DB {
 		println("DUMP=" + dsn)
 	}
 
-	db := NewDB(dsn)
+	db := sqlite.NewDB(dsn)
 	if err := db.Open(); err != nil {
 		tb.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func MustOpenDB(tb testing.TB) *DB {
 }
 
 // MustCloseDB closes the DB. Fatal on error.
-func MustCloseDB(tb testing.TB, db *DB) {
+func MustCloseDB(tb testing.TB, db *sqlite.DB) {
 	tb.Helper()
 	if err := db.Close(); err != nil {
 		tb.Fatal(err)

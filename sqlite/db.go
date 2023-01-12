@@ -1,4 +1,4 @@
-package entity
+package sqlite
 
 import (
 	"context"
@@ -15,6 +15,8 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/nickcoast/timetravel/entity"
 )
 
 // see https://github.com/benbjohnson/wtf/blob/321f7917f4004f4365f826d3fae3d5777ecf54d8/sqlite/sqlite.go
@@ -214,7 +216,7 @@ func FormatError(err error) error {
 
 	switch err.Error() {
 	case "UNIQUE constraint failed: dial_memberships.dial_id, dial_memberships.user_id":
-		return wtf.Errorf(wtf.ECONFLICT, "Dial membership already exists.")
+		return entity.Errorf(entity.ECONFLICT, "Dial membership already exists.")
 	default:
 		return err
 	}
