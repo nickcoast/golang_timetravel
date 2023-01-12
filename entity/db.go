@@ -17,7 +17,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// see https://github.com/benbjohnson/wtf/blob/321f7917f4004f4365f826d3fae3d5777ecf54d8/sqlite/sqlite.go#L43-L58
+// see https://github.com/benbjohnson/wtf/blob/321f7917f4004f4365f826d3fae3d5777ecf54d8/sqlite/sqlite.go
 
 //go:embed migration/*.sql
 var migrationFS embed.FS
@@ -207,7 +207,7 @@ func FormatLimitOffset(limit, offset int) string {
 
 // FormatError returns err as a WTF error, if possible.
 // Otherwise returns the original error.
-/* func FormatError(err error) error {
+func FormatError(err error) error {
 	if err == nil {
 		return nil
 	}
@@ -218,7 +218,7 @@ func FormatLimitOffset(limit, offset int) string {
 	default:
 		return err
 	}
-} */
+}
 
 // logstr is a helper function for printing and returning a string.
 // It can be useful for printing out query text.
