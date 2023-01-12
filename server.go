@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/temelpa/timetravel/api"
+	"github.com/temelpa/timetravel/entity"
 	"github.com/temelpa/timetravel/service"
 )
 
@@ -44,5 +45,5 @@ func main() {
 }
 
 type Main struct {
-	DB *DB
+	DB *entity.DB
 }
