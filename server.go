@@ -15,11 +15,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/nickcoast/timetravel/api"
+	"github.com/nickcoast/timetravel/entity"
+	"github.com/nickcoast/timetravel/service"
 	"github.com/nickcoast/timetravel/sqlite"
 	"github.com/pelletier/go-toml"
-	"github.com/temelpa/timetravel/api"
-	"github.com/temelpa/timetravel/entity"
-	"github.com/temelpa/timetravel/service"
 )
 
 // logError logs all non-nil errors
@@ -30,6 +30,7 @@ func logError(err error) {
 }
 
 func main() {
+	fmt.Println("func main start")
 	// Setup signal handlers.
 	ctx, cancel := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
@@ -38,6 +39,7 @@ func main() {
 
 	m := NewMain()
 	// Execute program.
+	fmt.Println("func main Run")
 	if err := m.Run(ctx); err != nil {
 		m.Close()
 		fmt.Fprintln(os.Stderr, err)
@@ -45,6 +47,7 @@ func main() {
 		os.Exit(1)
 	}
 	// Wait for CTRL-C.
+	fmt.Println("func main end")
 	<-ctx.Done()
 
 	// Clean up program.
@@ -56,6 +59,7 @@ func main() {
 
 type Main struct {
 	Config     Config
+	ConfigPath string
 	DB         *sqlite.DB
 	HTTPServer *http.Server
 
@@ -80,7 +84,7 @@ func (m *Main) Close() error {
 }
 
 func NewMain() *Main {
-
+	fmt.Println("Main NewMain")
 	router := mux.NewRouter()
 
 	service := service.NewInMemoryRecordService()
@@ -101,10 +105,13 @@ func NewMain() *Main {
 		ReadTimeout:  15 * time.Second,
 	}
 	log.Printf("listening on %s", address)
-	log.Fatal(srv.ListenAndServe())
+	//log.Fatal(srv.ListenAndServe())
+	fmt.Println("Main NewMain after ListenAndServe")
 
 	return &Main{
-		DB:         sqlite.NewDB("asdf"),
+		Config:     DefaultConfig(),
+		ConfigPath: DefaultConfigPath,
+		DB:         sqlite.NewDB("file:main.db?cache=shared&mode=rwc&locking_mode=NORMAL&_fk=1&synchronous=2"),
 		HTTPServer: srv,
 	}
 }
@@ -112,16 +119,18 @@ func NewMain() *Main {
 // Run executes the program. The configuration should already be set up before
 // calling this function.
 func (m *Main) Run(ctx context.Context) (err error) {
-
+	fmt.Println("Main Run")
 	// Expand the DSN (in case it is in the user home directory ("~")).
 	// Then open the database. This will instantiate the SQLite connection
 	// and execute any pending migration files.
 	if m.DB.DSN, err = expandDSN(m.Config.DB.DSN); err != nil {
+		fmt.Println("Main.Run ERR m.DB.DSN", m.DB.DSN)
 		return fmt.Errorf("cannot expand dsn: %w", err)
 	}
 	if err := m.DB.Open(); err != nil {
 		return fmt.Errorf("cannot open db: %w", err)
 	}
+	fmt.Println("Main.Run after m.DB.Open. m.DB.DSN", m.DB.DSN)
 
 	// Instantiate SQLite-backed services.
 	insuredService := sqlite.NewInsuredService(m.DB)
@@ -149,6 +158,10 @@ func (m *Main) Run(ctx context.Context) (err error) {
 		return err
 	} */
 
+	//m.HTTPServer.InsuredService = insuredService
+	//log.Fatal(m.HTTPServer.ListenAndServe())
+	go func() { log.Fatal(m.HTTPServer.ListenAndServe()) }()
+	fmt.Println("Server started in Main.Run")
 	//log.Printf("running: url=%q debug=http://localhost:6060 dsn=%q", m.HTTPServer.URL(), m.Config.DB.DSN)
 
 	return nil
@@ -159,7 +172,7 @@ const (
 	DefaultConfigPath = "~/code/go/temelpa/wtfd.conf"
 
 	// DefaultDSN is the default datasource name.
-	DefaultDSN = "~/code/go/temelpa/.wtfd/db"
+	DefaultDSN = "file:main.db?cache=shared&mode=rwc&locking_mode=NORMAL&_fk=1&synchronous=2"
 )
 
 // Config represents the CLI configuration file.

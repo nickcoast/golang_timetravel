@@ -63,9 +63,10 @@ type InsuredService interface {
 // InsuredFilter represents a filter passed to FindInsureds().
 type InsuredFilter struct {
 	// Filtering fields.
-	ID     *int    `json:"id"`
-	/* Email  *string `json:"email"`
-	APIKey *string `json:"apiKey"` */
+	ID				*int    `json:"id"`
+	Name			*string `json:"name"`
+	PolicyNumber	*int `json:"policyNumber"`
+	RecordTimestamp	*int	`json:"recordTimestamp"`
 
 	// Restrict to subset of results.
 	Offset int `json:"offset"`

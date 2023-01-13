@@ -1,11 +1,11 @@
 package sqlite
 
 import (
-	"context"	
-	/* "database/sql" */		
+	"context"
+	/* "database/sql" */
 	"strings"
-	
-	"github.com/temelpa/timetravel/entity"
+
+	"github.com/nickcoast/timetravel/entity"
 )
 
 // Ensure service implements interface.
@@ -37,7 +37,6 @@ func (s *InsuredService) FindInsuredByID(ctx context.Context, id int) (*entity.I
 	}
 	return insured, nil
 }
-
 
 // FindInsureds retrieves a list of insureds by filter. Also returns total count of
 // matching insureds which may differ from returned results if filter.Limit is specified.
@@ -113,8 +112,6 @@ func findInsuredByID(ctx context.Context, tx *Tx, id int) (*entity.Insured, erro
 	return a[0], nil
 }
 
-
-
 // findInsureds returns a list of insureds matching a filter. Also returns a count of
 // total matching insureds which may differ if filter.Limit is set.
 func findInsureds(ctx context.Context, tx *Tx, filter entity.InsuredFilter) (_ []*entity.Insured, n int, err error) {
@@ -125,16 +122,18 @@ func findInsureds(ctx context.Context, tx *Tx, filter entity.InsuredFilter) (_ [
 	}
 
 	// Execute query to fetch insured rows.
+	// integer timestamp, or even date string, cannot be stored in Go type time.Time
+	// because sqlite has no DATETIME type.
+	// doesn't work: datetime(record_timestamp, 'unixepoch' /*, 'localtime' */) as record_timestamp,
+	// only solution seems to be to switch from time.Time to integer and then convert to datetime in Go
 	rows, err := tx.QueryContext(ctx, `
 		SELECT 
 		    id,
 		    name,
-		    email,
-		    api_key,
-		    created_at,
-		    updated_at,
+		  	policy_number,			
+			record_timestamp,
 		    COUNT(*) OVER()
-		FROM insureds
+		FROM insured
 		WHERE `+strings.Join(where, " AND ")+`
 		ORDER BY id ASC
 		`+FormatLimitOffset(filter.Limit, filter.Offset),
@@ -147,7 +146,7 @@ func findInsureds(ctx context.Context, tx *Tx, filter entity.InsuredFilter) (_ [
 
 	// Deserialize rows into Insured objects.
 	insureds := make([]*entity.Insured, 0)
-	for rows.Next() {		
+	for rows.Next() {
 		var insured entity.Insured
 		if err := rows.Scan(
 			&insured.ID,
@@ -172,27 +171,26 @@ func findInsureds(ctx context.Context, tx *Tx, filter entity.InsuredFilter) (_ [
 // the timestamps to the current time.
 func createInsured(ctx context.Context, tx *Tx, insured *entity.Insured) error {
 	// Set timestamps to the current time.
-	insured.RecordTimestamp = tx.now	
+	insured.RecordTimestamp = tx.now
 
 	// Perform basic field validation.
 	if err := insured.Validate(); err != nil {
 		return err
 	}
 
-	// Execute insertion query.
+	// Execute insertion query. // TODO: implement "auto increment" for policy_number
 	result, err := tx.ExecContext(ctx, `
-		INSERT INTO insureds (
+		INSERT INTO insured (
 			name,
-			email,
-			api_key,
-			created_at,
-			updated_at
+			policy_number,			
+			record_timestamp		
 		)
-		VALUES (?, ?, ?, ?, ?)
+		VALUES (?, ?, ?)
 	`,
 		insured.Name,
-		(*NullTime)(&insured.RecordTimestamp),
-	)
+		insured.PolicyNumber,
+		insured.RecordTimestamp.Unix(), // can use a Scan method here if necessary
+	) // alternatively could try this on last line of INSERT. Don't know if deepEqual checks unset values: VALUES (?, ?, STRFTIME('%s'))
 	if err != nil {
 		return FormatError(err)
 	}
@@ -263,10 +261,10 @@ func deleteInsured(ctx context.Context, tx *Tx, id int) error {
 	// Verify object exists.
 	if _, err := findInsuredByID(ctx, tx, id); err != nil {
 		return err
-	} 
+	}
 
 	// Remove row from database.
-	if _, err := tx.ExecContext(ctx, `DELETE FROM insureds WHERE id = ?`, id); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM insured WHERE id = ?`, id); err != nil {
 		return FormatError(err)
 	}
 	return nil
