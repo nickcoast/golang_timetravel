@@ -201,3 +201,31 @@ func MustCreateInsured(tb testing.TB, ctx context.Context, db *sqlite.DB, insure
 	}
 	return insured, ctx
 }
+
+/* func TestInsuredService_GetMaxPolicyNumber(t *testing.T) {
+	// Ensure insureds can be fetched by email address.
+	t.Run("MaxPolicyNumber", func(t *testing.T) {
+		db := MustOpenDB(t)
+		defer MustCloseDB(t, db)
+		s := sqlite.NewInsuredService(db)
+
+		ctx := context.Background()
+		MustCreateInsured(t, ctx, db, &entity.Insured{Name: "john", PolicyNumber: 500})
+		MustCreateInsured(t, ctx, db, &entity.Insured{Name: "jane", PolicyNumber: 501})
+		MustCreateInsured(t, ctx, db, &entity.Insured{Name: "frank", PolicyNumber: 502})
+		MustCreateInsured(t, ctx, db, &entity.Insured{Name: "sue", PolicyNumber: 503})
+
+		mp := s.GetMaxPolicyNumber()
+
+		policyNumber := 501
+		if a, n, err := s.FindInsureds(ctx, entity.InsuredFilter{PolicyNumber: &policyNumber}); err != nil {
+			t.Fatal(err)
+		} else if got, want := len(a), 1; got != want {
+			t.Fatalf("len=%v, want %v", got, want)
+		} else if got, want := a[0].Name, "jane"; got != want {
+			t.Fatalf("name=%v, want %v", got, want)
+		} else if got, want := n, 1; got != want {
+			t.Fatalf("n=%v, want %v", got, want)
+		}
+	})
+} */

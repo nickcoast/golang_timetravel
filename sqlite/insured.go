@@ -2,6 +2,8 @@ package sqlite
 
 import (
 	"context"
+	//"fmt"
+
 	/* "database/sql" */
 	"strings"
 
@@ -269,3 +271,4 @@ func deleteInsured(ctx context.Context, tx *Tx, id int) error {
 	}
 	return nil
 }
+
