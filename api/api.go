@@ -24,11 +24,15 @@ func (a *API) CreateV1Routes(routes *mux.Router) {
 	routes.Path("/records/{id}").HandlerFunc(a.GetRecords).Methods("GET")
 	routes.Path("/records/{id}").HandlerFunc(a.PostRecords).Methods("POST")
 }
-func (a *API) CreateV2Routes(routes *mux.Router) {	
-	routes.Path("/insured/id/{id}").HandlerFunc(a.GetInsuredsById).Methods("GET")
+func (a *API) CreateV2Routes(routes *mux.Router) {
+	i := routes.PathPrefix("/insured").Subrouter()
+	i.Path("/id/{id}").HandlerFunc(a.GetInsuredsById).Methods("GET")
+	i.Path("/new").HandlerFunc(a.CreateInsured).Methods("POST")
+	i.Path("/delete/{id}").HandlerFunc(a.DeleteInsured).Methods("DELETE")
 
-	routes.Path("/insured/new").HandlerFunc(a.CreateInsured).Methods("POST")
-	routes.Path("/insured/delete/{id}").HandlerFunc(a.DeleteInsured).Methods("DELETE")
+	e := routes.PathPrefix("/employee").Subrouter()
+	e.Path("/id/{id}").HandlerFunc(a.GetRecords).Methods("GET")
 
-	routes.Path("/employee/id/{id}").HandlerFunc(a.GetRecords).Methods("GET")
+	ad := routes.PathPrefix("/address").Subrouter()
+	ad.Path("/id/{id}").HandlerFunc(a.GetRecords).Methods("GET")
 }
