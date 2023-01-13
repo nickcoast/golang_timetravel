@@ -6,13 +6,13 @@ import (
 	
 )
 
-// Insured represents a insured in the system. Insureds are typically created via OAuth
-// using the AuthService but insureds can also be created directly for testing.
+// Insured represents a insured in the system.
+// insureds can also be created directly for testing.
 type Insured struct {
 	ID int `json:"id"`
 
 	// Insured's preferred name & email.
-	Name  string `json:"name"`	
+	Name string `json:"name"`
 
 	PolicyNumber int `json:"policyNumber"`
 
@@ -21,8 +21,6 @@ type Insured struct {
 
 	// Timestamps for insured creation & last update.
 	RecordTimestamp time.Time `json:"recordTimestamp"`
-	
-
 }
 
 // Validate returns an error if the insured contains invalid fields.
@@ -34,7 +32,6 @@ func (u *Insured) Validate() error {
 	return nil
 }
 
-
 // InsuredService represents a service for managing insureds.
 type InsuredService interface {
 	// Retrieves a insured by ID along with their associated auth objects.
@@ -45,12 +42,10 @@ type InsuredService interface {
 	// insureds which may differ from returned results if filter.Limit is specified.
 	FindInsureds(ctx context.Context, filter InsuredFilter) ([]*Insured, int, error)
 
-	// Creates a new insured. This is only used for testing since insureds are typically
-	// created during the OAuth creation process in AuthService.CreateAuth().
-	CreateInsured(ctx context.Context, insured *Insured) error
+	// Creates a new insured.
+	CreateInsured(ctx context.Context, insured *Insured) (int64, int, error)
 
-	// Updates a insured object. Returns EUNAUTHORIZED if current insured is not
-	// the insured that is being updated. Returns ENOTFOUND if insured does not exist.
+	// Updates a insured object. Returns ENOTFOUND if insured does not exist.
 	// REMOVED from interface. Will not support updates to the core table for now
 	/* UpdateInsured(ctx context.Context, id int, upd InsuredUpdate) (*Insured, error) */
 
@@ -63,10 +58,10 @@ type InsuredService interface {
 // InsuredFilter represents a filter passed to FindInsureds().
 type InsuredFilter struct {
 	// Filtering fields.
-	ID				*int    `json:"id"`
-	Name			*string `json:"name"`
-	PolicyNumber	*int `json:"policyNumber"`
-	RecordTimestamp	*int	`json:"recordTimestamp"`
+	ID              *int    `json:"id"`
+	Name            *string `json:"name"`
+	PolicyNumber    *int    `json:"policyNumber"`
+	RecordTimestamp *int    `json:"recordTimestamp"`
 
 	// Restrict to subset of results.
 	Offset int `json:"offset"`
@@ -75,6 +70,6 @@ type InsuredFilter struct {
 
 // InsuredUpdate represents a set of fields to be updated via UpdateInsured().
 type InsuredUpdate struct {
-	Name  *string `json:"name"`
-	Email *string `json:"email"`
+	Name         *string `json:"name"`
+	PolicyNumber *int    `json:"policyNumber"`
 }

@@ -27,6 +27,8 @@ type RecordService interface {
 	//
 	// UpdateRecord will error if id <= 0 or the record does not exist with that id.
 	UpdateRecord(ctx context.Context, id int, updates map[string]*string) (entity.Record, error)
+
+	DeleteRecord(ctx context.Context, id int) error
 }
 
 // InMemoryRecordService is an in-memory implementation of RecordService.
@@ -38,6 +40,11 @@ func NewInMemoryRecordService() InMemoryRecordService {
 	return InMemoryRecordService{
 		data: map[int]entity.Record{},
 	}
+}
+
+func (s *InMemoryRecordService) DeleteRecord(ctx context.Context, id int) (err error) {
+	delete(s.data, id)
+	return nil
 }
 
 func (s *InMemoryRecordService) GetRecordById(ctx context.Context, id int) (entity.Record, error) {
@@ -56,7 +63,7 @@ func (s *InMemoryRecordService) CreateRecord(ctx context.Context, record entity.
 		return ErrRecordIDInvalid
 	}
 
-	existingRecord := s.data[id] // don't need this if relying on auto-increment primary key
+	existingRecord := s.data[id]
 	if existingRecord.ID != 0 {
 		return ErrRecordAlreadyExists
 	}

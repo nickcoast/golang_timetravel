@@ -18,3 +18,10 @@ func (d *Record) Copy() Record {
 		Data: newMap,
 	}
 }
+
+func (d *Record) DataVal(key string) (val string, err error) {
+	if v, exists := d.Data[key]; exists {
+		return v, nil
+	}
+	return "", Errorf("No such key '%v'", key)
+}
