@@ -87,8 +87,9 @@ func NewMain() *Main {
 	fmt.Println("Main NewMain")
 	router := mux.NewRouter()
 
-	service := service.NewInMemoryRecordService()
-	api := api.NewAPI(&service)
+	memoryService := service.NewInMemoryRecordService()
+	sqliteService := service.NewSqliteRecordService()
+	api := api.NewAPI(&memoryService, &sqliteService)
 
 	apiRoute := router.PathPrefix("/api/v2").Subrouter()
 	apiRoute.Path("/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -108,10 +109,14 @@ func NewMain() *Main {
 	//log.Fatal(srv.ListenAndServe())
 	fmt.Println("Main NewMain after ListenAndServe")
 
+	db := sqlite.NewDB("file:main.db?cache=shared&mode=rwc&locking_mode=NORMAL&_fk=1&synchronous=2")
+	// injects db into the sqlite service so it can interact with the database.
+	sqliteService.SetService(db)
+
 	return &Main{
 		Config:     DefaultConfig(),
 		ConfigPath: DefaultConfigPath,
-		DB:         sqlite.NewDB("file:main.db?cache=shared&mode=rwc&locking_mode=NORMAL&_fk=1&synchronous=2"),
+		DB:         db,
 		HTTPServer: srv,
 	}
 }

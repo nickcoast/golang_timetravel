@@ -7,8 +7,8 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/temelpa/timetravel/entity"
-	"github.com/temelpa/timetravel/service"
+	"github.com/nickcoast/timetravel/entity"
+	"github.com/nickcoast/timetravel/service"
 )
 
 // POST /records/{id}
