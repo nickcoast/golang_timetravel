@@ -91,12 +91,18 @@ func NewMain() *Main {
 	sqliteService := service.NewSqliteRecordService()
 	api := api.NewAPI(&memoryService, &sqliteService)
 
-	apiRoute := router.PathPrefix("/api/v2").Subrouter()
+	apiRoute := router.PathPrefix("/api/v1").Subrouter()
 	apiRoute.Path("/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 		logError(err)
 	})
-	api.CreateRoutes(apiRoute)
+
+	apiRouteV2 := router.PathPrefix("/api/v2").Subrouter()
+	apiRouteV2.Path("/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		logError(err)
+	})
+	api.CreateRoutes(apiRoute, apiRouteV2)
 
 	address := "127.0.0.1:8000"
 	srv := &http.Server{
