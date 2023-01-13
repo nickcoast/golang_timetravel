@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"reflect"
 
 	"database/sql/driver"
 	"embed"
@@ -36,9 +37,9 @@ type DB struct {
 func NewDB(dsn string) *DB {
 	db := &DB{
 		DSN: dsn,
-		/* Now: time.Now,
-
-		EventService: wtf.NopEventService(), */
+		Now: time.Now,
+		/*
+			EventService: wtf.NopEventService(), */
 	}
 	db.ctx, db.cancel = context.WithCancel((context.Background())) // new context?
 	return db
@@ -175,7 +176,30 @@ func lastInsertID(result sql.Result) (int, error) {
 type NullTime time.Time
 
 // Scan reads a time value from the database.
+// Maybe better way
 func (n *NullTime) Scan(value interface{}) error {
+	valtypes := map[string]int{"int": 0, "int32": 1, "int64": 2}
+	valtype := reflect.TypeOf(value).String()
+	if val, ok := valtypes[valtype]; ok {
+		if int64val, ok := value.(int64); ok {
+			*(*time.Time)(n) = time.Unix(int64val, 0).UTC()
+			fmt.Println("Int 64 to time")
+			return nil
+		} else if intval, ok := value.(int32); ok {
+			int64val := int64(intval)
+			*(*time.Time)(n) = time.Unix(int64val, 0).UTC()
+			fmt.Println("Int 32 to time")
+			return nil
+		} else if intval, ok := value.(int); ok {
+			int64val := int64(intval)
+			*(*time.Time)(n) = time.Unix(int64val, 0).UTC()
+			fmt.Println("int to time", val, valtype, value)
+			return nil
+		} else {
+			fmt.Println("not an integer type")
+		}
+	}
+
 	if value == nil {
 		*(*time.Time)(n) = time.Time{}
 		return nil

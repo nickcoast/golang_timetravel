@@ -6,7 +6,7 @@ import (
 )
 
 type API struct {
-	records service.RecordService
+	records service.RecordService	
 }
 
 func NewAPI(records service.RecordService) *API {
@@ -17,4 +17,6 @@ func NewAPI(records service.RecordService) *API {
 func (a *API) CreateRoutes(routes *mux.Router) {
 	routes.Path("/records/{id}").HandlerFunc(a.GetRecords).Methods("GET")
 	routes.Path("/records/{id}").HandlerFunc(a.PostRecords).Methods("POST")
+	routes.Path("/insured/id/{id}").HandlerFunc(a.GetInsuredsById).Methods("GET")
+	routes.Path("/employee/id/{id}").HandlerFunc(a.GetRecords).Methods("GET")
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/nickcoast/timetravel/sqlite"
 )
 
-var dump = flag.Bool("dump", false, "save work data")
+var dump = flag.Bool("dump", true, "save work data")
 
 // Ensure the test database can open & close.
 func TestDB(t *testing.T) {
@@ -23,13 +23,14 @@ func MustOpenDB(tb testing.TB) *sqlite.DB {
 
 	// Write to an in-memory database by default.
 	// If the -dump flag is set, generate a temp file for the database.
-	dsn := ":memory:"
+	//dsn := ":memory:"
+	dsn := "file:test.db?cache=shared&mode=rwc&locking_mode=NORMAL&_fk=1&synchronous=2"
 	if *dump {
 		dir, err := ioutil.TempDir("", "")
 		if err != nil {
 			tb.Fatal(err)
 		}
-		dsn = filepath.Join(dir, "db")
+		dsn = filepath.Join(dir, "db") // TODO: this is dumb. Tosses out my entire DSN
 		println("DUMP=" + dsn)
 	}
 
