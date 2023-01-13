@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	//"errors"
 
@@ -33,7 +34,7 @@ func (s *SqliteRecordService) GetRecordById(ctx context.Context, id int) (entity
 	if err != nil {
 		return entity.Record{}, ErrRecordDoesNotExist
 	}
-	fmt.Println("Name", e.Name, "id", e.ID, "pn", e.PolicyNumber, "rt", e.RecordTimestamp)
+	fmt.Println("service.SqliteRecordService.GetRecordById: Name", e.Name, "id", e.ID, "pn", e.PolicyNumber, "rt", e.RecordTimestamp)
 
 	// exclude the delete updates
 	recordMap := map[string]string{}
@@ -54,19 +55,37 @@ func (s *SqliteRecordService) GetRecordById(ctx context.Context, id int) (entity
 	return record, nil
 }
 
-func (s *SqliteRecordService) CreateRecord(ctx context.Context, record entity.Record) error {
+func (s *SqliteRecordService) CreateRecord(ctx context.Context, record entity.Record) (err error) {
 	id := record.ID
-	if id <= 0 {
+	if id != 0 {
 		return ErrRecordIDInvalid
 	}
 
-	existingRecord := s.data[id] // don't need this if relying on auto-increment primary key
-	if existingRecord.ID != 0 {
-		return ErrRecordAlreadyExists
+	name, err := record.DataVal("name")
+	fmt.Println("SqliteRecordService.CreateRecord name:", name)
+	if err != nil {
+		return err
+	}
+
+	var insured *entity.Insured
+	insured = &entity.Insured{}
+	insured.Name = name
+	insured.RecordTimestamp = time.Now().UTC()
+	fmt.Println("You are here")
+	newId, policyNumber, err := s.service.CreateInsured(ctx, insured)
+	fmt.Println("service.SqliteRecordService in insured.go created new policy number: ", policyNumber, "with id:", newId, "for:", name)
+	if err != nil {
+		return err
+		// May want to use this later
+		//return ErrRecordAlreadyExists
 	}
 
 	s.data[id] = record // creation
 	return nil
+}
+
+func (s *SqliteRecordService) DeleteRecord(ctx context.Context, id int) error {
+	return s.service.DeleteInsured(ctx, id)
 }
 
 func (s *SqliteRecordService) UpdateRecord(ctx context.Context, id int, updates map[string]*string) (entity.Record, error) {
@@ -103,7 +122,7 @@ func findInsureds(ctx context.Context, tx *sqlite.Tx, filter entity.InsuredFilte
 	if v := filter.RecordTimestamp; v != nil {
 		where, args = append(where, "record_timestamp = ?"), append(args, *v)
 	}
-
+	fmt.Println("service.SqliteRecordService findInsureds")
 	// Execute query to fetch insured rows.
 	rows, err := tx.QueryContext(ctx, `
 		SELECT 
@@ -145,18 +164,4 @@ func findInsureds(ctx context.Context, tx *sqlite.Tx, filter entity.InsuredFilte
 	}
 
 	return insureds, n, nil
-}
-
-func GetMaxPolicyNumber(ctx context.Context, tx *sqlite.Tx, id int) (max int, err error) {
-	tx.QueryRowContext(ctx, `
-		SELECT MAX(policy_number) AS max_policy_number 		
-		FROM insured		
-		ORDER BY id ASC`,
-	).Scan(&max)
-
-	if max == 0 {
-		return 0, fmt.Errorf("Failed to retrieve max policy number")
-	}
-	return max, nil
-
 }
