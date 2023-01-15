@@ -12,6 +12,7 @@ import (
 // GetRecord retrieves the record.
 func (a *API) GetRecords(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	resource := mux.Vars(r)["type"]
 	id := mux.Vars(r)["id"]
 
 	idNumber, err := strconv.ParseInt(id, 10, 32)
@@ -24,6 +25,7 @@ func (a *API) GetRecords(w http.ResponseWriter, r *http.Request) {
 
 	record, err := a.records.GetRecordById(
 		ctx,
+		resource,
 		int(idNumber),
 	)
 	if err != nil {

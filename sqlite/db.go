@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"reflect"
 
 	"database/sql/driver"
@@ -31,19 +32,34 @@ type DB struct {
 	cancel func()
 	DSN    string
 
+	tableNames         map[string]int
+	allowedNaturalKeys map[string]int
+
 	Now func() time.Time
 }
 
 func NewDB(dsn string) *DB {
+	tn := make(map[string]int)
+	tn["insured"] = 0
+	tn["employees"] = 1
+	tn["addresses"] = 2
+	ank := make(map[string]int)
+	ank["name"] = 0
+	ank["address"] = 1
 	db := &DB{
-		DSN: dsn,
-		Now: time.Now,
-		/*
-			EventService: wtf.NopEventService(), */
+		DSN:                dsn,
+		Now:                time.Now,
+		tableNames:         tn,
+		allowedNaturalKeys: ank,
 	}
 	db.ctx, db.cancel = context.WithCancel((context.Background())) // new context?
 	return db
 }
+
+var ErrRecordDoesNotExist = errors.New("record with that id does not exist")
+var ErrRecordIDInvalid = errors.New("record id must >= 0")
+var ErrRecordAlreadyExists = errors.New("record already exists")
+var ErrRecordMatchingCriteriaDoesNotExist = errors.New("no records matched your search")
 
 func (db *DB) Open() (err error) { // need ctx here or not?
 
@@ -128,6 +144,190 @@ func (db *DB) migrateFile(name string) error {
 
 	return tx.Commit()
 }
+
+func (db *DB) GetById(ctx context.Context, tableName string, id int64) (record entity.Record, err error) {
+	if id == 0 {
+		return record, ErrRecordDoesNotExist
+	}
+	tx, err := db.db.Begin()
+	if err != nil {
+		return record, err
+	}
+	defer tx.Rollback()
+
+	fmt.Println("sqlite DB.GetById")
+
+	if _, ok := db.tableNames[tableName]; !ok {
+		fmt.Println("tableName", tableName)
+		return record, fmt.Errorf("DB - table name doesn't exist.")
+	}
+
+	rows, err := tx.QueryContext(ctx, `SELECT * FROM `+tableName+` WHERE id = ?`, id)
+	if err != nil {
+		fmt.Println("bad query")
+		return record, fmt.Errorf("Query failed")
+	}
+
+	// https://kylewbanks.com/blog/query-result-to-map-in-golang
+	columnNames, err := rows.Columns()
+	fmt.Println(columnNames)
+	recordMap := map[string]string{}
+	m := make(map[string]interface{})
+	rowCount := 0
+	for rows.Next() {
+		columns := make([]interface{}, len(columnNames))
+		columnPointers := make([]interface{}, len(columnNames))
+
+		for i := range columns {
+			columnPointers[i] = &columns[i]
+		}
+
+		if err := rows.Scan(columnPointers...); err != nil {
+			return record, err
+		}
+		// Make map, get value for each column
+		for i, colName := range columnNames {
+			val := columnPointers[i].(*interface{})
+			m[colName] = *val
+		}
+		rowCount++
+		fmt.Print("Incremented rowCount:", rowCount)
+	}
+	if rowCount == 0 {
+		fmt.Println("rowCount:", rowCount, "m:", m, "table:", tableName)
+		return record, ErrRecordDoesNotExist
+	}
+	fmt.Println(recordMap)
+	if err := rows.Err(); err != nil {
+		return record, fmt.Errorf("rowsErr: %v", err)
+	}
+
+	// convert to string map
+	data := make(map[string]string)
+	for key, value := range m {
+		strKey := fmt.Sprintf("%v", key)
+		strVal := fmt.Sprintf("%v", value)
+		data[strKey] = strVal
+	}
+
+	record = entity.Record{
+		ID:   int(id),
+		Data: data,
+	}
+	fmt.Println("db:", record)
+	tx.Commit()
+	return record, err
+}
+
+func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string, insuredId int, date time.Time) (records entity.Record, err error) {
+	id := insuredId
+	if id == 0 {
+		return records, ErrRecordDoesNotExist
+	}
+	if _, ok := db.tableNames[tableName]; !ok {
+		fmt.Println("tableName", tableName)
+		return records, fmt.Errorf("DB - table name doesn't exist.")
+	}
+	if _, ok := db.allowedNaturalKeys[naturalKey]; !ok {
+		fmt.Println("naturalKey", naturalKey)
+		return records, fmt.Errorf("DB - key not allowed.")
+	}
+
+	timestamp := date.Unix()
+	fmt.Println("DB.GetByDate timestamp", timestamp)
+	tx, err := db.db.Begin()
+	if err != nil {
+		return records, err
+	}
+	defer tx.Rollback()
+
+	fmt.Println("sqlite DB.GetById")
+
+	// TODO: change record_timestamp to "?""
+	rows, err := tx.QueryContext(ctx,
+		`SELECT *, MAX(record_timestamp) as max_timestamp 
+		FROM `+tableName+`
+		WHERE record_timestamp < 1673692615
+		AND insured_id = ?
+		GROUP BY insured_id, `+naturalKey, id)
+
+	if err != nil {
+		fmt.Println("bad query")
+		return records, fmt.Errorf("Query failed")
+	}
+	// https://kylewbanks.com/blog/query-result-to-map-in-golang
+	columnNames, err := rows.Columns()
+	fmt.Println(columnNames)
+	recordMap := map[string]string{}
+	m := make(map[string]interface{})
+	for rows.Next() {
+		columns := make([]interface{}, len(columnNames))
+		columnPointers := make([]interface{}, len(columnNames))
+
+		for i := range columns {
+			columnPointers[i] = &columns[i]
+		}
+
+		if err := rows.Scan(columnPointers...); err != nil {
+			return records, err
+		}
+		// Make map, get value for each column
+		for i, colName := range columnNames {
+			val := columnPointers[i].(*interface{})
+			m[colName] = *val
+		}
+	}
+	fmt.Println(recordMap)
+	if err := rows.Err(); err != nil {
+		return records, err
+	}
+
+	// convert to string map
+	data := make(map[string]string)
+	for key, value := range m {
+		strKey := fmt.Sprintf("%v", key)
+		strVal := fmt.Sprintf("%v", value)
+		data[strKey] = strVal
+	}
+
+	records = entity.Record{
+		ID:   int(id),
+		Data: data,
+	}
+	tx.Commit()
+	return records, err
+}
+
+func (db *DB) DeleteById(ctx context.Context, tableName string, id int) error {
+	if id == 0 {
+		return ErrRecordIDInvalid
+	}
+	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	fmt.Println("sqlite DB.DeleteById")
+
+	if _, ok := db.tableNames[tableName]; !ok {
+		fmt.Println("tableName", tableName)
+		return fmt.Errorf("DB - table name doesn't exist.")
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM `+tableName+` WHERE id = ?`, id)
+	if err != nil {
+		fmt.Println("DeleteById - bad query", err)
+		return fmt.Errorf("Query failed")
+	}
+
+	tx.Commit()
+	return nil
+}
+
+/* 
+// Currently handled by Entity
+func (db *DB) CreateRecord(ctx context.Context, tableName string, Record) */
 
 // Close closes the database connection.
 func (db *DB) Close() error {

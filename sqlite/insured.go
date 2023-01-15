@@ -17,25 +17,26 @@ var _ entity.InsuredService = (*InsuredService)(nil)
 
 // InsuredService represents a service for managing insureds.
 type InsuredService struct {
-	db *DB
+	Db *DB
 }
 
 // NewInsuredService returns a new instance of InsuredService.
 func NewInsuredService(db *DB) *InsuredService {
-	return &InsuredService{db: db}
+	return &InsuredService{Db: db}
 }
 
-// FindInsuredByID retrieves a insured by ID along with their associated auth objects.
+// FindInsuredByID retrieves a insured by ID
 // Returns ENOTFOUND if insured does not exist.
 func (s *InsuredService) FindInsuredByID(ctx context.Context, id int) (*entity.Insured, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	fmt.Println("sqlite.InsuredService.FindInsuredById")
+	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 	fmt.Println("InsuredService.FindInsuredByID id:", id)
 
-	// Fetch insured and their associated OAuth objects.
+	// Fetch insured
 	insured, err := findInsuredByID(ctx, tx, id)
 	if err != nil {
 		return insured, err
@@ -46,7 +47,7 @@ func (s *InsuredService) FindInsuredByID(ctx context.Context, id int) (*entity.I
 // FindInsureds retrieves a list of insureds by filter. Also returns total count of
 // matching insureds which may differ from returned results if filter.Limit is specified.
 func (s *InsuredService) FindInsureds(ctx context.Context, filter entity.InsuredFilter) ([]*entity.Insured, int, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -54,10 +55,9 @@ func (s *InsuredService) FindInsureds(ctx context.Context, filter entity.Insured
 	return findInsureds(ctx, tx, filter)
 }
 
-// CreateInsured creates a new insured. This is only used for testing since insureds are
-// typically created during the OAuth creation process in AuthService.CreateAuth().
+// CreateInsured creates a new insured.
 func (s *InsuredService) CreateInsured(ctx context.Context, insured *entity.Insured) (id int64, policyNumber int, err error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -71,8 +71,29 @@ func (s *InsuredService) CreateInsured(ctx context.Context, insured *entity.Insu
 	return id, policyNumber, tx.Commit()
 }
 
-// UpdateInsured updates a insured object. Returns EUNAUTHORIZED if current insured is
-// not the insured that is being updated. Returns ENOTFOUND if insured does not exist.
+func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Employee) (id int64, err error) {
+	tx, err := s.Db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	// Create a new insured object
+	id, err = createEmployee(ctx, tx, employee)
+	fmt.Println("InsuredService.CreateEmployee id:", id)
+	if err != nil {
+		fmt.Println("asdf")
+		return 0, err
+	}
+	if err = tx.Commit(); err != nil {
+		fmt.Println("jkl")
+		return 0, err
+	}
+	return id, nil
+
+}
+
+// UpdateInsured updates a insured object. Returns ENOTFOUND if insured does not exist.
 /* func (s *InsuredService) UpdateInsured(ctx context.Context, id int, upd entity.InsuredUpdate) (*entity.Insured, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -80,7 +101,7 @@ func (s *InsuredService) CreateInsured(ctx context.Context, insured *entity.Insu
 	}
 	defer tx.Rollback()
 
-	// Update insured & attach associated OAuth objects.
+	// Update insured
 	insured, err := updateInsured(ctx, tx, id, upd)
 	if err != nil {
 		return insured, err
@@ -91,10 +112,9 @@ func (s *InsuredService) CreateInsured(ctx context.Context, insured *entity.Insu
 } */
 
 // DeleteInsured permanently deletes a insured and all owned dials.
-// Returns EUNAUTHORIZED if current insured is not the insured being deleted.
 // Returns ENOTFOUND if insured does not exist.
-func (s *InsuredService) DeleteInsured(ctx context.Context, id int) error {
-	tx, err := s.db.BeginTx(ctx, nil)
+/* func (s *InsuredService) DeleteInsured(ctx context.Context, id int) error {
+	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -104,11 +124,16 @@ func (s *InsuredService) DeleteInsured(ctx context.Context, id int) error {
 		return err
 	}
 	return tx.Commit()
+} */
+
+func (s *InsuredService) DeleteEmployee(ctx context.Context, id int) error {
+	return nil
 }
 
 // findInsuredByID is a helper function to fetch a insured by ID.
 // Returns ENOTFOUND if insured does not exist.
 func findInsuredByID(ctx context.Context, tx *Tx, id int) (*entity.Insured, error) {
+	fmt.Println("sqlite.InsuredService findInsuredById")
 	a, _, err := findInsureds(ctx, tx, entity.InsuredFilter{ID: &id})
 	if err != nil {
 		return nil, err
@@ -136,7 +161,7 @@ func findInsureds(ctx context.Context, tx *Tx, filter entity.InsuredFilter) (_ [
 	if v := filter.Name; v != nil {
 		where, args = append(where, "name = ?"), append(args, *v)
 	}
-
+	fmt.Println("sqlite.InsuredService findInsureds")
 	// Execute query to fetch insured rows.
 	// integer timestamp, or even date string, cannot be stored in Go type time.Time
 	// because sqlite has no DATETIME type.
@@ -162,6 +187,7 @@ func findInsureds(ctx context.Context, tx *Tx, filter entity.InsuredFilter) (_ [
 
 	// Deserialize rows into Insured objects.
 	insureds := make([]*entity.Insured, 0)
+	i := 0
 	for rows.Next() {
 		var insured entity.Insured
 		if err := rows.Scan(
@@ -175,6 +201,10 @@ func findInsureds(ctx context.Context, tx *Tx, filter entity.InsuredFilter) (_ [
 		}
 
 		insureds = append(insureds, &insured)
+		i++
+	}
+	if i == 0 {
+		return nil, 0, ErrRecordMatchingCriteriaDoesNotExist
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
@@ -187,7 +217,6 @@ func findInsureds(ctx context.Context, tx *Tx, filter entity.InsuredFilter) (_ [
 // the timestamps to the current time.
 func createInsured(ctx context.Context, tx *Tx, insured *entity.Insured) (id int64, policyNumber int, err error) {
 	// Set timestamps to the current time.
-	insured.RecordTimestamp = tx.now
 
 	// Perform basic field validation.
 	if err := insured.Validate(); err != nil {
@@ -225,8 +254,47 @@ func createInsured(ctx context.Context, tx *Tx, insured *entity.Insured) (id int
 	return id, policyNumber, nil
 }
 
-// updateInsured updates fields on a insured object. Returns EUNAUTHORIZED if current
-// insured is not the insured being updated.
+// createEmployee creates a new employee. Sets the new database ID to insured.ID and sets
+// the timestamps to the current time.
+func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (id int64, err error) {
+	// Perform basic field validation.
+	if err := employee.Validate(); err != nil {
+		return 0, err
+	}
+
+	// Execute insertion query. // TODO: implement "auto increment" for policy_number
+	//dateVal = (employee.EndDate < time.Parse("2006-01-02","1971-01-01") ? nil : employee.EndDate.Format("2006-01-02"))
+
+	result, err := tx.ExecContext(ctx, `
+		INSERT INTO employees (
+			name,
+			start_date,
+			end_date,
+			insured_id,		
+			record_timestamp		
+		)
+		VALUES (?, ?, ?, ?, ?)
+	`,
+		employee.Name,
+		employee.StartDate.Format("2006-01-02"),
+		employee.EndDate.Format("2006-01-02"), //.Format("2006-01-02"),
+		employee.InsuredId,
+		employee.RecordTimestamp.Unix(), // can use a Scan method here if necessary
+	) // alternatively could try this on last line of INSERT. Don't know if deepEqual checks unset values: VALUES (?, ?, STRFTIME('%s'))
+	if err != nil {
+		return 0, FormatError(err)
+	}
+
+	id, err = result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	employee.ID = int(id)
+
+	return id, nil
+}
+
+// updateInsured updates fields on a insured object.
 /* func updateInsured(ctx context.Context, tx *Tx, id int, upd entity.InsuredUpdate) (*entity.Insured, error) {
 	// Fetch current object state.
 	insured, err := findInsuredByID(ctx, tx, id)

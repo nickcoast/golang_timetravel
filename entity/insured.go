@@ -2,8 +2,8 @@ package entity
 
 import (
 	"context"
+	"strconv"
 	"time"
-	
 )
 
 // Insured represents a insured in the system.
@@ -15,9 +15,6 @@ type Insured struct {
 	Name string `json:"name"`
 
 	PolicyNumber int `json:"policyNumber"`
-
-	// Randomly generated API key for use with the CLI.
-	/* APIKey string `json:"-"` */
 
 	// Timestamps for insured creation & last update.
 	RecordTimestamp time.Time `json:"recordTimestamp"`
@@ -34,7 +31,7 @@ func (u *Insured) Validate() error {
 
 // InsuredService represents a service for managing insureds.
 type InsuredService interface {
-	// Retrieves a insured by ID along with their associated auth objects.
+	// Retrieves a insured by ID
 	// Returns ENOTFOUND if insured does not exist.
 	FindInsuredByID(ctx context.Context, id int) (*Insured, error)
 
@@ -49,10 +46,10 @@ type InsuredService interface {
 	// REMOVED from interface. Will not support updates to the core table for now
 	/* UpdateInsured(ctx context.Context, id int, upd InsuredUpdate) (*Insured, error) */
 
-	// Permanently deletes a insured and all owned dials. Returns EUNAUTHORIZED
-	// if current insured is not the insured being deleted. Returns ENOTFOUND if
+	// Permanently deletes a insured and all owned dials. Returns ENOTFOUND if
 	// insured does not exist.
-	DeleteInsured(ctx context.Context, id int) error
+	// removed in favor of DB method
+	//DeleteInsured(ctx context.Context, id int) error
 }
 
 // InsuredFilter represents a filter passed to FindInsureds().
@@ -72,4 +69,28 @@ type InsuredFilter struct {
 type InsuredUpdate struct {
 	Name         *string `json:"name"`
 	PolicyNumber *int    `json:"policyNumber"`
+}
+
+func (e *Insured) ToRecord() Record {
+	idString := strconv.Itoa(e.ID)
+	r := Record{
+		ID: e.ID,
+		Data: map[string]string{
+			"id":               idString,
+			"name":             e.Name,
+			"record_timestamp": strconv.Itoa(int(e.RecordTimestamp.Unix())),
+		},
+	}
+	return r
+}
+
+func (e *Insured) FromRecord(r Record) (err error) {
+	e.ID = r.ID
+	e.Name = r.Data["name"]
+	/* e.StartDate, err = time.Parse("2006-01-02", r.Data["start_date"])
+	//e.EndDate, _ = time.Parse
+	e.InsuredId, err = strconv.Atoi(r.Data["insured_id"]) */
+	timestampInt, err := strconv.Atoi(r.Data["record_timestamp"])
+	e.RecordTimestamp = time.Unix(int64(timestampInt), 0)
+	return err
 }

@@ -10,10 +10,12 @@ import (
 
 // GET /insured/id/{id}
 // GetInsureds retrieves the record.
-func (a *API) GetInsuredsById(w http.ResponseWriter, r *http.Request) {
+func (a *API) GetResourceById(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	resource := mux.Vars(r)["type"]	
 	id := mux.Vars(r)["id"]
 	fmt.Println("api.GetInsuredsById id:", id)
+	fmt.Println("api.GetInsuredsById resource:", resource)
 	idNumber, err := strconv.ParseInt(id, 10, 32)
 
 	if err != nil || idNumber <= 0 {
@@ -22,8 +24,11 @@ func (a *API) GetInsuredsById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//record, err := a.sqlite.
+
 	record, err := a.sqlite.GetRecordById(
 		ctx,
+		resource,
 		int(idNumber),
 	)
 	if err != nil {

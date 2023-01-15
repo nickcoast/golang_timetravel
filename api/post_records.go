@@ -16,6 +16,7 @@ import (
 // if the record doesn't exist, the record is created.
 func (a *API) PostRecords(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	resource := mux.Vars(r)["type"]
 	id := mux.Vars(r)["id"]
 	idNumber, err := strconv.ParseInt(id, 10, 32)
 
@@ -37,6 +38,7 @@ func (a *API) PostRecords(w http.ResponseWriter, r *http.Request) {
 	// first retrieve the record
 	record, err := a.records.GetRecordById(
 		ctx,
+		resource,
 		int(idNumber),
 	)
 
@@ -56,7 +58,7 @@ func (a *API) PostRecords(w http.ResponseWriter, r *http.Request) {
 			ID:   int(idNumber),
 			Data: recordMap,
 		}
-		err = a.records.CreateRecord(ctx, record)
+		err = a.records.CreateRecord(ctx, resource, record)
 	}
 
 	if err != nil {
