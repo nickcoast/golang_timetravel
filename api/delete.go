@@ -35,14 +35,15 @@ func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = a.sqlite.DeleteRecord(ctx, resource, int(idNumber))
+	/* this API response can give the user a chance to "undo" by sumbitting this data as a new record */
+	deletedRecord, err := a.sqlite.DeleteRecord(ctx, resource, idNumber)
 	if err != nil {
 		err := writeError(w, "Bad request or server error", http.StatusBadRequest)
 		logError(err)
 		fmt.Println("oh no")
 		return
 	}
-	err = writeJSON(w /* record */, "deleted", http.StatusOK)
+	err = writeJSON(w, deletedRecord, http.StatusOK)
 	logError(err)
 	return
 }

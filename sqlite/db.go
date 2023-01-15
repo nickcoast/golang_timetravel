@@ -298,13 +298,13 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 	return records, err
 }
 
-func (db *DB) DeleteById(ctx context.Context, tableName string, id int) error {
+func (db *DB) DeleteById(ctx context.Context, tableName string, id int64) (deletedRecord entity.Record, err error) {
 	if id == 0 {
-		return ErrRecordIDInvalid
+		return deletedRecord, ErrRecordIDInvalid
 	}
 	tx, err := db.db.Begin()
 	if err != nil {
-		return err
+		return deletedRecord, err
 	}
 	defer tx.Rollback()
 
@@ -312,20 +312,24 @@ func (db *DB) DeleteById(ctx context.Context, tableName string, id int) error {
 
 	if _, ok := db.tableNames[tableName]; !ok {
 		fmt.Println("tableName", tableName)
-		return fmt.Errorf("DB - table name doesn't exist.")
+		return deletedRecord, fmt.Errorf("DB - table name doesn't exist.")
+	}
+	deletedRecord, err = db.GetById(ctx, tableName, id)
+	if err != nil {
+		return deletedRecord, entity.Errorf("Failed to get record before deletion. Aborting delete. Error: %v", err.Error())
 	}
 
 	_, err = tx.ExecContext(ctx, `DELETE FROM `+tableName+` WHERE id = ?`, id)
 	if err != nil {
-		fmt.Println("DeleteById - bad query", err)
-		return fmt.Errorf("Query failed")
+		fmt.Println("Failed to DELETE record", err)
+		return deletedRecord, fmt.Errorf("Failed to DELETE record. Error: %v", err.Error())
 	}
 
 	tx.Commit()
-	return nil
+	return deletedRecord, nil
 }
 
-/* 
+/*
 // Currently handled by Entity
 func (db *DB) CreateRecord(ctx context.Context, tableName string, Record) */
 

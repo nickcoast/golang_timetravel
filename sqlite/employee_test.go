@@ -3,11 +3,13 @@ package sqlite_test
 import (
 	"context"
 	"fmt"
-	"reflect"
+
+	//"reflect"
 	"testing"
 	"time"
 
 	//"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp"
 	"github.com/nickcoast/timetravel/entity"
 	"github.com/nickcoast/timetravel/sqlite"
 )
@@ -38,20 +40,20 @@ func TestEmployeeService_CreateEmployee(t *testing.T) {
 		}
 
 		// Create new employee & verify ID and timestamps are set.
-		id, err := s.CreateEmployee(ctx, u)
+		newRecord, err := s.CreateEmployee(ctx, u)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		fmt.Println("New employee created")
 
-		employeeRec, err := s.Db.GetById(ctx, "employees", int64(id))
+		employeeRec, err := s.Db.GetById(ctx, "employees", int64(newRecord.ID))
 		gottenId := int64(employeeRec.ID)
 
 		if err != nil {
-			fmt.Println("id", id, "gottenId:", gottenId)
+			fmt.Println("id", newRecord, "gottenId:", gottenId)
 			t.Fatal(err)
-		} else if got, want := id, gottenId; got != int64(want) {
+		} else if got, want := int64(newRecord.ID), gottenId; got != want {
 			t.Fatalf("ID=%v, want %v", got, want)
 		} else if u.RecordTimestamp.IsZero() {
 			t.Fatal("expected created at")
@@ -78,11 +80,8 @@ func TestEmployeeService_CreateEmployee(t *testing.T) {
 		//u2Record := u2.ToRecord()
 		if other, err := s.Db.GetById(ctx, "employees", 7); err != nil {
 			t.Fatal(err)
-			/* else if !cmp.Equal(other, uRecord) {
-				t.Fatal("Records are not equal")
-			} */
-		} else if !reflect.DeepEqual(uRecord, other) {
-			t.Fatalf("mismatch: %#v != %#v", uRecord, other)
+		} else if !cmp.Equal(other, uRecord) {
+			t.Fatal("Records are not equal")
 		}
 	})
 
@@ -210,31 +209,3 @@ func MustCreateEmployee(tb testing.TB, ctx context.Context, db *sqlite.DB, emplo
 	}
 	return employee, ctx
 }
-
-/* func TestEmployeeService_GetMaxPolicyNumber(t *testing.T) {
-	// Ensure employees can be fetched by email address.
-	t.Run("MaxPolicyNumber", func(t *testing.T) {
-		db := MustOpenDB(t)
-		defer MustCloseDB(t, db)
-		s := sqlite.NewEmployeeService(db)
-
-		ctx := context.Background()
-		MustCreateEmployee(t, ctx, db, &entity.Employee{Name: "john", PolicyNumber: 500, RecordTimestamp: time.Now().UTC()})
-		MustCreateEmployee(t, ctx, db, &entity.Employee{Name: "jane", PolicyNumber: 501, RecordTimestamp: time.Now().UTC()})
-		MustCreateEmployee(t, ctx, db, &entity.Employee{Name: "frank", PolicyNumber: 502, RecordTimestamp: time.Now().UTC()})
-		MustCreateEmployee(t, ctx, db, &entity.Employee{Name: "sue", PolicyNumber: 1002, RecordTimestamp: time.Now().UTC()})
-
-		tx, err := db.BeginTx(ctx, nil)
-		defer tx.Commit()
-		if err != nil {
-			t.Fatalf("BeginTx failed %v", err)
-		}
-
-		maxPolicyNumber := 1002
-		mp, err := s.GetMaxPolicyNumber(ctx, tx)
-
-		if got, want := mp, maxPolicyNumber; got != want {
-			t.Fatalf("maxp=%v, want %v", got, want)
-		}
-	})
-} */
