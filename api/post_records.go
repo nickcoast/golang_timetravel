@@ -58,7 +58,7 @@ func (a *API) PostRecords(w http.ResponseWriter, r *http.Request) {
 			ID:   int(idNumber),
 			Data: recordMap,
 		}
-		err = a.records.CreateRecord(ctx, resource, record)
+		record, err = a.records.CreateRecord(ctx, resource, record)
 	}
 
 	if err != nil {

@@ -40,7 +40,7 @@ type InsuredService interface {
 	FindInsureds(ctx context.Context, filter InsuredFilter) ([]*Insured, int, error)
 
 	// Creates a new insured.
-	CreateInsured(ctx context.Context, insured *Insured) (int64, int, error)
+	CreateInsured(ctx context.Context, insured *Insured) (Record, error)
 
 	// Updates a insured object. Returns ENOTFOUND if insured does not exist.
 	// REMOVED from interface. Will not support updates to the core table for now
@@ -78,6 +78,7 @@ func (e *Insured) ToRecord() Record {
 		Data: map[string]string{
 			"id":               idString,
 			"name":             e.Name,
+			"policy_number":    strconv.Itoa(e.PolicyNumber),
 			"record_timestamp": strconv.Itoa(int(e.RecordTimestamp.Unix())),
 		},
 	}

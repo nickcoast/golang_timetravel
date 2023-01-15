@@ -27,7 +27,7 @@ func NewInsuredService(db *DB) *InsuredService {
 
 // FindInsuredByID retrieves a insured by ID
 // Returns ENOTFOUND if insured does not exist.
-func (s *InsuredService) FindInsuredByID(ctx context.Context, id int) (*entity.Insured, error) {
+func (s *InsuredService) FindInsuredByID(ctx context.Context, id int) (insured *entity.Insured, err error) {
 	fmt.Println("sqlite.InsuredService.FindInsuredById")
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
@@ -37,8 +37,9 @@ func (s *InsuredService) FindInsuredByID(ctx context.Context, id int) (*entity.I
 	fmt.Println("InsuredService.FindInsuredByID id:", id)
 
 	// Fetch insured
-	insured, err := findInsuredByID(ctx, tx, id)
+	record, err := s.Db.GetById(ctx, "insured", int64(id))
 	if err != nil {
+		insured.FromRecord(record)
 		return insured, err
 	}
 	return insured, nil
@@ -56,40 +57,44 @@ func (s *InsuredService) FindInsureds(ctx context.Context, filter entity.Insured
 }
 
 // CreateInsured creates a new insured.
-func (s *InsuredService) CreateInsured(ctx context.Context, insured *entity.Insured) (id int64, policyNumber int, err error) {
+// Used by CreateRecord inside conditional
+func (s *InsuredService) CreateInsured(ctx context.Context, insured *entity.Insured) (record entity.Record, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, 0, err
+		return record, err
 	}
 	defer tx.Rollback()
 
 	// Create a new insured object
-	id, policyNumber, err = createInsured(ctx, tx, insured)
+	record, err = createInsured(ctx, tx, insured)
 	if err != nil {
-		return 0, 0, err
+		return record, err
 	}
-	return id, policyNumber, tx.Commit()
+	return record, tx.Commit()
 }
 
-func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Employee) (id int64, err error) {
+func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Employee) (record entity.Record, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, err
+		return record, err
 	}
 	defer tx.Rollback()
 
 	// Create a new insured object
-	id, err = createEmployee(ctx, tx, employee)
-	fmt.Println("InsuredService.CreateEmployee id:", id)
-	if err != nil {
-		fmt.Println("asdf")
-		return 0, err
+	record, err = createEmployee(ctx, tx, employee)
+	fmt.Println("InsuredService.CreateEmployee record:", record)
+	if err != nil && err.Error() == "UNIQUE constraint failed: employees.insured_id, employees.name, employees.start_date, employees.end_date" {
+		fmt.Println("Duplicate key error. Insert failed.")
+		return record, ErrRecordAlreadyExists
+	}
+	if err != nil { // any other error
+		return record, err
 	}
 	if err = tx.Commit(); err != nil {
 		fmt.Println("jkl")
-		return 0, err
+		return record, err
 	}
-	return id, nil
+	return record, nil
 
 }
 
@@ -126,21 +131,9 @@ func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Em
 	return tx.Commit()
 } */
 
-func (s *InsuredService) DeleteEmployee(ctx context.Context, id int) error {
-	return nil
-}
-
-// findInsuredByID is a helper function to fetch a insured by ID.
-// Returns ENOTFOUND if insured does not exist.
-func findInsuredByID(ctx context.Context, tx *Tx, id int) (*entity.Insured, error) {
-	fmt.Println("sqlite.InsuredService findInsuredById")
-	a, _, err := findInsureds(ctx, tx, entity.InsuredFilter{ID: &id})
-	if err != nil {
-		return nil, err
-	} else if len(a) == 0 {
-		return nil, &entity.Error{Code: entity.ENOTFOUND, Message: "Insured not found."}
-	}
-	return a[0], nil
+// NOT USED BY API. Bypassing Service for generalized DB methods for Delete, Get
+func (s *InsuredService) DeleteEmployee(ctx context.Context, id int) (record entity.Record, err error) {
+	return record, nil
 }
 
 // findInsureds returns a list of insureds matching a filter. Also returns a count of
@@ -215,20 +208,17 @@ func findInsureds(ctx context.Context, tx *Tx, filter entity.InsuredFilter) (_ [
 
 // createInsured creates a new insured. Sets the new database ID to insured.ID and sets
 // the timestamps to the current time.
-func createInsured(ctx context.Context, tx *Tx, insured *entity.Insured) (id int64, policyNumber int, err error) {
-	// Set timestamps to the current time.
-
+func createInsured(ctx context.Context, tx *Tx, insured *entity.Insured) (newRecord entity.Record, err error) {
 	// Perform basic field validation.
 	if err := insured.Validate(); err != nil {
-		return 0, 0, err
+		return newRecord, err
 	}
-	policyNumber, err = getMaxPolicyNumber(ctx, tx)
+	policyNumber, err := getMaxPolicyNumber(ctx, tx)
 	policyNumber++ // safe if table is locked in transaction. else need trigger in DB
 	if err != nil {
-		return 0, 0, FormatError(err)
+		return newRecord, FormatError(err)
 	}
-
-	// Execute insertion query. // TODO: implement "auto increment" for policy_number
+	insured.PolicyNumber = policyNumber
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO insured (
 			name,
@@ -240,26 +230,28 @@ func createInsured(ctx context.Context, tx *Tx, insured *entity.Insured) (id int
 		insured.Name,
 		policyNumber,
 		insured.RecordTimestamp.Unix(), // can use a Scan method here if necessary
-	) // alternatively could try this on last line of INSERT. Don't know if deepEqual checks unset values: VALUES (?, ?, STRFTIME('%s'))
+	)
 	if err != nil {
-		return 0, 0, FormatError(err)
+		fmt.Println("asdf")
+		return newRecord, FormatError(err)
 	}
 
-	id, err = result.LastInsertId()
+	id, err := result.LastInsertId()
 	if err != nil {
-		return 0, 0, err
+		return newRecord, err
 	}
 	insured.ID = int(id)
+	newRecord = insured.ToRecord()
 
-	return id, policyNumber, nil
+	return newRecord, nil
 }
 
 // createEmployee creates a new employee. Sets the new database ID to insured.ID and sets
 // the timestamps to the current time.
-func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (id int64, err error) {
+func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (record entity.Record, err error) {
 	// Perform basic field validation.
 	if err := employee.Validate(); err != nil {
-		return 0, err
+		return record, err
 	}
 
 	// Execute insertion query. // TODO: implement "auto increment" for policy_number
@@ -277,21 +269,20 @@ func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (id 
 	`,
 		employee.Name,
 		employee.StartDate.Format("2006-01-02"),
-		employee.EndDate.Format("2006-01-02"), //.Format("2006-01-02"),
+		employee.EndDate.Format("2006-01-02"),
 		employee.InsuredId,
 		employee.RecordTimestamp.Unix(), // can use a Scan method here if necessary
-	) // alternatively could try this on last line of INSERT. Don't know if deepEqual checks unset values: VALUES (?, ?, STRFTIME('%s'))
+	)
 	if err != nil {
-		return 0, FormatError(err)
+		return record, FormatError(err)
 	}
-
-	id, err = result.LastInsertId()
+	id, err := result.LastInsertId()
 	if err != nil {
-		return 0, err
+		return record, err
 	}
 	employee.ID = int(id)
-
-	return id, nil
+	record = employee.ToRecord()
+	return record, nil
 }
 
 // updateInsured updates fields on a insured object.
@@ -343,20 +334,6 @@ func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (id 
 
 	return insured, nil
 } */
-
-// deleteInsured permanently removes a insured by ID.
-func deleteInsured(ctx context.Context, tx *Tx, id int) error {
-	// Verify object exists.
-	if _, err := findInsuredByID(ctx, tx, id); err != nil {
-		return err
-	}
-
-	// Remove row from database.
-	if _, err := tx.ExecContext(ctx, `DELETE FROM insured WHERE id = ?`, id); err != nil {
-		return FormatError(err)
-	}
-	return nil
-}
 
 // private helper to help insert policy numbers in order
 func getMaxPolicyNumber(ctx context.Context, tx *Tx) (max int, err error) {

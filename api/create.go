@@ -33,13 +33,18 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 			recordMap[key] = *value
 		}
 	}
-	var newRecord entity.Record
-	newRecord.Data = recordMap
+	var requestRecord entity.Record
+	requestRecord.Data = recordMap
 
-	fmt.Println("api.CreateInsured newRecord", newRecord)
-	err = a.sqlite.CreateRecord(ctx, resource, newRecord)
+	fmt.Println("api.CreateInsured requestRecord", requestRecord)
+	newRecord, err := a.sqlite.CreateRecord(ctx, resource, requestRecord)
 
-	if err != nil {
+	if err != nil && err.Error() == "record already exists" {
+		errInWriting := writeError(w, err.Error(), http.StatusBadRequest)
+		logError(err)
+		logError(errInWriting)
+		return
+	} else if err != nil {
 		errInWriting := writeError(w, ErrInternal.Error(), http.StatusInternalServerError)
 		logError(err)
 		logError(errInWriting)
@@ -47,6 +52,6 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Println("newRecord", newRecord)
-	err = writeJSON(w, newRecord, http.StatusOK)
+	err = writeJSON(w, newRecord, http.StatusOK) //TODO: actually return new record
 	logError(err)
 }

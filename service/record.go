@@ -22,7 +22,7 @@ type RecordService interface {
 	// CreateRecord will insert a new record.
 	//
 	// If it a record with that id already exists it will fail.
-	CreateRecord(ctx context.Context, resource string, record entity.Record) error
+	CreateRecord(ctx context.Context, resource string, record entity.Record) (entity.Record, error)
 
 	// UpdateRecord will change the internal `Map` values of the record if they exist.
 	// if the update[key] is null it will delete that key from the record's Map.
@@ -30,7 +30,7 @@ type RecordService interface {
 	// UpdateRecord will error if id <= 0 or the record does not exist with that id.
 	UpdateRecord(ctx context.Context, id int, updates map[string]*string) (entity.Record, error)
 
-	DeleteRecord(ctx context.Context, resource string, id int) error
+	DeleteRecord(ctx context.Context, resource string, id int64) (entity.Record, error)
 
 	GetRecordByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, date time.Time) (records entity.Record, err error)
 }
@@ -51,9 +51,11 @@ func (s *InMemoryRecordService) GetRecordByDate(ctx context.Context, resource st
 	return entity.Record{}, fmt.Errorf("Cannot currently get memory resource by date")
 }
 
-func (s *InMemoryRecordService) DeleteRecord(ctx context.Context, resource string, id int) (err error) {
-	delete(s.data, id)
-	return nil
+func (s *InMemoryRecordService) DeleteRecord(ctx context.Context, resource string, id int64) (record entity.Record, err error) {	
+	record = s.data[int(id)]
+	delete(s.data, int(id))
+	// return deleted record, give user chance to "undo" if deleted by mistake
+	return record, nil
 }
 
 func (s *InMemoryRecordService) GetRecordById(ctx context.Context, resource string, id int) (entity.Record, error) { // TODO: maybe change resource to Struct
@@ -66,19 +68,20 @@ func (s *InMemoryRecordService) GetRecordById(ctx context.Context, resource stri
 	return record, nil
 }
 
-func (s *InMemoryRecordService) CreateRecord(ctx context.Context, resource string, record entity.Record) error {
+func (s *InMemoryRecordService) CreateRecord(ctx context.Context, resource string, record entity.Record) (newRecord entity.Record, err error) {
 	id := record.ID
 	if id <= 0 {
-		return ErrRecordIDInvalid
+		return record, ErrRecordIDInvalid
 	}
 
 	existingRecord := s.data[id]
 	if existingRecord.ID != 0 {
-		return ErrRecordAlreadyExists
+		return record, ErrRecordAlreadyExists
 	}
 
 	s.data[id] = record // creation
-	return nil
+	newRecord = s.data[id]
+	return newRecord, nil
 }
 
 func (s *InMemoryRecordService) UpdateRecord(ctx context.Context, id int, updates map[string]*string) (entity.Record, error) {

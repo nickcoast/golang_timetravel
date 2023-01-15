@@ -3,6 +3,7 @@ package sqlite_test
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -22,44 +23,56 @@ func TestInsuredService_CreateInsured(t *testing.T) {
 
 		uTimestamp, _ := time.Parse("2006-01-02 15:04:05", "2023-01-13 12:15:00")
 		u := &entity.Insured{
-			Name:            "susy",
-			PolicyNumber:    1002,       // will be 1002 whatever is set here because of DB trigger to automatically increment
-			RecordTimestamp: uTimestamp, //time.Now().UTC(),
+			Name: "susy",
+			/* PolicyNumber:    1002, */ // will be 1002 no matter what is set here because of DB trigger to automatically increment
+			RecordTimestamp:             uTimestamp, //time.Now().UTC(),
 		}
 
 		// Create new insured & verify ID and timestamps are set.
-		id, policyNumber, err := s.CreateInsured(context.Background(), u)
-		fmt.Println("New insured with id:", id, "and policy number:", policyNumber)
+		newRecord, err := s.CreateInsured(context.Background(), u)
+		fmt.Println("New insured with id:", newRecord.ID, "and data (should include policy number):", newRecord.Data)
 		if err != nil {
 			t.Fatal(err)
-		} else if got, want := u.ID, 3; got != want {
+		} else if got, want := newRecord.ID, 3; got != want {
 			t.Fatalf("ID=%v, want %v", got, want)
-		} else if u.RecordTimestamp.IsZero() {
-			t.Fatal("expected created at")
+		}
+		newTimestamp, err := strconv.Atoi(newRecord.Data["record_timestamp"])
+		if newTimestamp == 0 {
+			t.Fatal("Invalid timestamp created: ", newTimestamp, " - Error:", err)
 		}
 
-		uid64 := int64(u.ID)
-		if got, want := id, uid64; got == want { // confirming these should always be the same
-			fmt.Println("id and u.ID are the same:", id)
+		policyNumber, err := strconv.Atoi(newRecord.Data["policy_number"])
+		expectedPolicyNumber := 1002
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := policyNumber, expectedPolicyNumber; got != want { // confirming these should always be the same
+			t.Fatal("Unexpected policy_number created: ", policyNumber, " - Expected: ", expectedPolicyNumber)
 		}
 
 		// Create second insured with PolicyNumber.
-		u2 := &entity.Insured{Name: "jane", PolicyNumber: 1500, RecordTimestamp: time.Now()}
-		if _, _, err := s.CreateInsured(context.Background(), u2); err != nil {
+		u2 := &entity.Insured{Name: "jane" /* PolicyNumber: 1003, */, RecordTimestamp: time.Now()}
+		expectedPolicyNumber2 := 1003
+		newRecord2, err := s.CreateInsured(context.Background(), u2)
+		if err != nil {
 			t.Fatal(err)
-		} else if got, want := u2.ID, 4; got != want {
+		} else if got, want := newRecord2.ID, 4; got != want {
 			t.Fatalf("ID=%v, want %v", got, want)
 		}
-
-		// Fetch insured from database & compare.
-		if other, err := s.FindInsuredByID(context.Background(), 3); err != nil {
+		policyNumber2, err := strconv.Atoi(newRecord2.Data["policy_number"])
+		if err != nil {
 			t.Fatal(err)
-		} else if !cmp.Equal(u, other) {
-			t.Fatalf("mismatch: %#v != %#v", u, other)
 		}
-		/* else if !reflect.DeepEqual(u, other) {
-			t.Fatalf("mismatch: %#v != %#v", u, other)
-		} */
+		if got, want := policyNumber2, expectedPolicyNumber2; got != want { // confirming these should always be the same
+			t.Fatal("Unexpected policy_number created: ", policyNumber2, " - Expected: ", expectedPolicyNumber2)
+		}
+		// Fetch insured from database & compare.
+		if other, err := db.GetById(context.Background(), "insured", 3); err != nil {
+			//if other, err := db.GetById(context.Background(), "insured", 3); err != nil {
+			t.Fatal(err)
+		} else if !cmp.Equal(newRecord, other) {
+			t.Fatalf("mismatch: %#v != %#v", newRecord, other)
+		}
 	})
 
 	// Ensure an error is returned if insured name is not set.
@@ -67,7 +80,7 @@ func TestInsuredService_CreateInsured(t *testing.T) {
 		db := MustOpenDB(t)
 		defer MustCloseDB(t, db)
 		s := sqlite.NewInsuredService(db)
-		if _, _, err := s.CreateInsured(context.Background(), &entity.Insured{}); err == nil {
+		if _, err := s.CreateInsured(context.Background(), &entity.Insured{}); err == nil {
 			t.Fatal("expected error")
 		} else if entity.ErrorCode(err) != entity.EINVALID || entity.ErrorMessage(err) != `Insured name required.` {
 			t.Fatalf("unexpected error: %#v", err)
@@ -144,7 +157,7 @@ func TestInsuredService_FindInsured(t *testing.T) {
 		db := MustOpenDB(t)
 		defer MustCloseDB(t, db)
 		s := sqlite.NewInsuredService(db)
-		if _, err := s.FindInsuredByID(context.Background(), 1111); err == nil { // TODO: entity.ErrorCode(err) != entity.ENOTFOUND
+		if _, err := s.Db.GetById(context.Background(), "insured", 1111); err == nil { // TODO: entity.ErrorCode(err) != entity.ENOTFOUND
 			t.Fatalf("unexpected error: %#v", err)
 		}
 	})
@@ -178,12 +191,16 @@ func TestInsuredService_FindInsureds(t *testing.T) {
 }
 
 // MustCreateInsured creates a insured in the database. Fatal on error.
-func MustCreateInsured(tb testing.TB, ctx context.Context, db *sqlite.DB, insured *entity.Insured) (*entity.Insured, context.Context) {
+// Returns from newly created Insured in DB
+func MustCreateInsured(tb testing.TB, ctx context.Context, db *sqlite.DB, insured *entity.Insured) (newInsured entity.Insured, c context.Context) {
 	tb.Helper()
-	if _, _, err := sqlite.NewInsuredService(db).CreateInsured(ctx, insured); err != nil {
+	record, err := sqlite.NewInsuredService(db).CreateInsured(ctx, insured)
+	if err != nil {
 		tb.Fatal(err)
 	}
-	return insured, ctx
+	fmt.Println(record)
+	newInsured.FromRecord(record)
+	return newInsured, ctx
 }
 
 /* func TestInsuredService_GetMaxPolicyNumber(t *testing.T) {
