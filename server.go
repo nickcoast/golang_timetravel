@@ -63,7 +63,7 @@ type Main struct {
 	DB         *sqlite.DB
 	HTTPServer *http.Server
 
-	InsuredService entity.InsuredService
+	//InsuredService entity.InsuredService
 }
 
 //func NewServer()
@@ -144,36 +144,13 @@ func (m *Main) Run(ctx context.Context) (err error) {
 	fmt.Println("Main.Run after m.DB.Open. m.DB.DSN", m.DB.DSN)
 
 	// Instantiate SQLite-backed services.
-	insuredService := sqlite.NewInsuredService(m.DB)
+	//insuredService := sqlite.NewInsuredService(m.DB)
 
 	// Attach insured service to Main for testing.
-	m.InsuredService = insuredService
+	//m.InsuredService = insuredService
 
-	// Copy configuration settings to the HTTP server.
-	/* 	m.HTTPServer.Addr = m.Config.HTTP.Addr
-	   	m.HTTPServer.Domain = m.Config.HTTP.Domain
-	   	m.HTTPServer.HashKey = m.Config.HTTP.HashKey
-	   	m.HTTPServer.BlockKey = m.Config.HTTP.BlockKey
-	   	m.HTTPServer.GitHubClientID = m.Config.GitHub.ClientID
-	   	m.HTTPServer.GitHubClientSecret = m.Config.GitHub.ClientSecret */
-
-	// Attach underlying services to the HTTP server.
-	/* 	m.HTTPServer.AuthService = authService
-	   	m.HTTPServer.DialService = dialService
-	   	m.HTTPServer.DialMembershipService = dialMembershipService
-	   	m.HTTPServer.EventService = eventService
-	   	m.HTTPServer.UserService = userService */
-
-	// Start the HTTP server.
-	/* if err := m.HTTPServer.Open(); err != nil {
-		return err
-	} */
-
-	//m.HTTPServer.InsuredService = insuredService
-	//log.Fatal(m.HTTPServer.ListenAndServe())
 	go func() { log.Fatal(m.HTTPServer.ListenAndServe()) }()
 	fmt.Println("Server started in Main.Run")
-	//log.Printf("running: url=%q debug=http://localhost:6060 dsn=%q", m.HTTPServer.URL(), m.Config.DB.DSN)
 
 	return nil
 }

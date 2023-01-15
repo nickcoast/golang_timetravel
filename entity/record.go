@@ -1,5 +1,7 @@
 package entity
 
+import "fmt"
+
 type Record struct {
 	ID   int               `json:"id"`
 	Data map[string]string `json:"data"`
@@ -19,9 +21,14 @@ func (d *Record) Copy() Record {
 	}
 }
 
-func (d *Record) DataVal(key string) (val string, err error) {
+func (d *Record) DataVal(key string) (val *string) {
 	if v, exists := d.Data[key]; exists {
-		return v, nil
+		return &v
 	}
-	return "", Errorf("No such key '%v'", key)
+	return nil
+}
+func (d *Record) SetID(id int) {
+	fmt.Println("Record.SetID", id)
+	d.ID = id
+	fmt.Println("Record.SetID", d.ID)
 }

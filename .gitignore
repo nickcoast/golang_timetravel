@@ -1,3 +1,4 @@
-main.db*
+*.db
+*.db-*
 timetravel
 .vscode

@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/nickcoast/timetravel/entity"
 )
@@ -15,12 +17,12 @@ var ErrRecordAlreadyExists = errors.New("record already exists")
 type RecordService interface {
 
 	// GetRecord will retrieve an record.
-	GetRecordById(ctx context.Context, id int) (entity.Record, error)
+	GetRecordById(ctx context.Context, resource string, id int) (entity.Record, error) // TODO: change resource from string to Struct
 
 	// CreateRecord will insert a new record.
 	//
 	// If it a record with that id already exists it will fail.
-	CreateRecord(ctx context.Context, record entity.Record) error
+	CreateRecord(ctx context.Context, resource string, record entity.Record) error
 
 	// UpdateRecord will change the internal `Map` values of the record if they exist.
 	// if the update[key] is null it will delete that key from the record's Map.
@@ -28,7 +30,9 @@ type RecordService interface {
 	// UpdateRecord will error if id <= 0 or the record does not exist with that id.
 	UpdateRecord(ctx context.Context, id int, updates map[string]*string) (entity.Record, error)
 
-	DeleteRecord(ctx context.Context, id int) error
+	DeleteRecord(ctx context.Context, resource string, id int) error
+
+	GetRecordByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, date time.Time) (records entity.Record, err error)
 }
 
 // InMemoryRecordService is an in-memory implementation of RecordService.
@@ -42,12 +46,17 @@ func NewInMemoryRecordService() InMemoryRecordService {
 	}
 }
 
-func (s *InMemoryRecordService) DeleteRecord(ctx context.Context, id int) (err error) {
+// no API route will lead here.
+func (s *InMemoryRecordService) GetRecordByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, date time.Time) (records entity.Record, err error) {
+	return entity.Record{}, fmt.Errorf("Cannot currently get memory resource by date")
+}
+
+func (s *InMemoryRecordService) DeleteRecord(ctx context.Context, resource string, id int) (err error) {
 	delete(s.data, id)
 	return nil
 }
 
-func (s *InMemoryRecordService) GetRecordById(ctx context.Context, id int) (entity.Record, error) {
+func (s *InMemoryRecordService) GetRecordById(ctx context.Context, resource string, id int) (entity.Record, error) { // TODO: maybe change resource to Struct
 	record := s.data[id]
 	if record.ID == 0 {
 		return entity.Record{}, ErrRecordDoesNotExist
@@ -57,7 +66,7 @@ func (s *InMemoryRecordService) GetRecordById(ctx context.Context, id int) (enti
 	return record, nil
 }
 
-func (s *InMemoryRecordService) CreateRecord(ctx context.Context, record entity.Record) error {
+func (s *InMemoryRecordService) CreateRecord(ctx context.Context, resource string, record entity.Record) error {
 	id := record.ID
 	if id <= 0 {
 		return ErrRecordIDInvalid
@@ -89,16 +98,17 @@ func (s *InMemoryRecordService) UpdateRecord(ctx context.Context, id int, update
 	return entry.Copy(), nil
 }
 
-type SqlRecordService struct {
+type SqlRecordService struct { // TODO: delete
 	data map[int]entity.Record
 }
 
-func (s *SqlRecordService) GetRecordById(ctx context.Context, id int) (entity.Record, error) {
+// TODO: delete
+func (s *SqlRecordService) GetRecordById(ctx context.Context, resource string, id int) (entity.Record, error) { // ignore resource
 	record := s.data[id]
 	if record.ID == 0 {
 		return entity.Record{}, ErrRecordDoesNotExist
 	}
-
+	fmt.Println("service.InMemeryRecordService just kidding SqlRecordService")
 	record = record.Copy() // copy is necessary so modifations to the record don't change the stored record
 	return record, nil
 }

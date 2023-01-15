@@ -2,8 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
+	"strconv"
+
+	//"strings"
 	"time"
 
 	//"errors"
@@ -29,63 +32,142 @@ func (s *SqliteRecordService) SetService(db *sqlite.DB) {
 	s.service = *sqlite.NewInsuredService(db)
 }
 
-func (s *SqliteRecordService) GetRecordById(ctx context.Context, id int) (entity.Record, error) {
-	e, err := s.service.FindInsuredByID(ctx, id)
+func (s *SqliteRecordService) GetRecordById(ctx context.Context, resource string, id int) (entity.Record, error) {
+	if id == 0 {
+		return entity.Record{}, ErrRecordDoesNotExist
+	}
+	if resource == "employee" {
+		resource = "employees"
+	}
+	id64 := int64(id)
+	e, err := s.service.Db.GetById(ctx, resource, id64)
 	if err != nil {
 		return entity.Record{}, ErrRecordDoesNotExist
 	}
-	fmt.Println("service.SqliteRecordService.GetRecordById: Name", e.Name, "id", e.ID, "pn", e.PolicyNumber, "rt", e.RecordTimestamp)
+	//fmt.Println("service.SqliteRecordService.GetRecordById: Name", e.Name, "id", e.ID, "pn", e.PolicyNumber, "rt", e.RecordTimestamp)
+	fmt.Println("service.SqliteRecordService.GetById: Data", e.Data, "requested id", e.ID)
 
-	// exclude the delete updates
-	recordMap := map[string]string{}
-	recordMap["id"] = fmt.Sprintf("%d", e.ID)
-	recordMap["name"] = e.Name
-	recordMap["policyNumber"] = fmt.Sprintf("%d", e.PolicyNumber)
-	recordMap["recordTimestamp"] = fmt.Sprintf("%s", e.RecordTimestamp)
-
-	record := entity.Record{
-		ID:   int(e.ID),
-		Data: recordMap,
-	}
-
-	if record.ID == 0 {
-		return entity.Record{}, ErrRecordDoesNotExist
-	}
-
-	return record, nil
+	return e, nil
 }
 
-func (s *SqliteRecordService) CreateRecord(ctx context.Context, record entity.Record) (err error) {
+func createEntity(record entity.Record, entityType string) (interface{}, error) {
+	if entityType == "employees" {
+
+	} else if entityType == "insured" {
+		return entity.Insured{}, nil
+	}
+
+	return entity.Insured{}, fmt.Errorf("Sorry")
+
+}
+
+func (s *SqliteRecordService) CreateRecord(ctx context.Context, resource string, record entity.Record) (err error) {
 	id := record.ID
 	if id != 0 {
 		return ErrRecordIDInvalid
 	}
 
-	name, err := record.DataVal("name")
+	name := record.DataVal("name")
 	fmt.Println("SqliteRecordService.CreateRecord name:", name)
+	if name == nil {
+		return errors.New("Name is required")
+	}
+	timestamp := time.Now()
+
+	//resource, err := record.DataVal("type")
 	if err != nil {
 		return err
 	}
+	if resource == "insured" {
+		var insured *entity.Insured
+		insured = &entity.Insured{}
+		insured.Name = *name
+		insured.RecordTimestamp = timestamp
+		fmt.Println("You are here")
+		newId, policyNumber, err := s.service.CreateInsured(ctx, insured)
+		fmt.Println("service.SqliteRecordService in insured.go created new policy number: ", policyNumber, "with id:", newId, "for:", name)
+		if err != nil {
+			return err
+			// May want to use this later
+			//return ErrRecordAlreadyExists
+		}
+	} else if resource == "employee" || resource == "employees" {
+		var employee *entity.Employee
+		employee = &entity.Employee{}
+		employee.Name = *name
+		fmt.Println(employee)
+		fmt.Println("The Record (employee):", record)
+		if ii := record.DataVal("insuredId"); ii != nil {
+			if employee.InsuredId, err = strconv.Atoi(*ii); err != nil {
+				fmt.Println("Error converting to int:", err)
+				return fmt.Errorf("Problem converting string to int")
+			}
+		} else {
+			fmt.Println("ii", ii)
+			return fmt.Errorf("Insured ID required to create Employee: %v", err)
+		}
+		if sd := record.DataVal("startDate"); sd != nil && len(*sd) == 10 {
+			fmt.Println("sd:", sd)
+			employee.StartDate, err = time.Parse("2006-01-02", *sd)
+		} else {
+			return fmt.Errorf("startDate required to create Employee: %v, %v, %v", err, "sd", *sd)
+		}
+		ed := record.DataVal("endDate")
+		if ed != nil && len(*ed) == 10 {
+			t, _ := time.Parse("2006-01-02", *ed)
+			employee.EndDate = t
+		} else {
 
-	var insured *entity.Insured
-	insured = &entity.Insured{}
-	insured.Name = name
-	insured.RecordTimestamp = time.Now().UTC()
+		}
+		employee.RecordTimestamp = timestamp
+		fmt.Print("employee.*:", employee)
+		if _, err := s.service.CreateEmployee(ctx, employee); err != nil {
+			return err
+		}
+	}
+
 	fmt.Println("You are here")
-	newId, policyNumber, err := s.service.CreateInsured(ctx, insured)
-	fmt.Println("service.SqliteRecordService in insured.go created new policy number: ", policyNumber, "with id:", newId, "for:", name)
+
 	if err != nil {
 		return err
 		// May want to use this later
 		//return ErrRecordAlreadyExists
 	}
-
-	s.data[id] = record // creation
+	//s.data[id] = record // creation
 	return nil
+
 }
 
-func (s *SqliteRecordService) DeleteRecord(ctx context.Context, id int) error {
-	return s.service.DeleteInsured(ctx, id)
+// TODO: use map for natural key, or struct
+func (s *SqliteRecordService) GetRecordByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, date time.Time) (entity.Record, error) {
+	if insuredId == 0 {
+		return entity.Record{}, ErrRecordDoesNotExist
+	}
+	if resource == "employee" {
+		resource = "employees"
+	}
+	e, err := s.service.Db.GetById(ctx, resource, insuredId)
+	if err != nil {
+		return entity.Record{}, ErrRecordDoesNotExist
+	}	
+	fmt.Println("service.SqliteRecordService.GetRecordByDate: Data", e.Data, "requested id", e.ID)
+
+	return e, ErrRecordDoesNotExist
+}
+
+func (s *SqliteRecordService) DeleteRecord(ctx context.Context, resource string, id int) error {
+	if id == 0 {
+		return ErrRecordDoesNotExist
+	}
+	if resource == "employee" {
+		resource = "employees"
+	}
+	err := s.service.Db.DeleteById(ctx, resource, id)
+	if err != nil {
+		return ErrRecordDoesNotExist
+	}
+	fmt.Print("Deleted ", resource, " with id:", id)
+	return nil
 }
 
 func (s *SqliteRecordService) UpdateRecord(ctx context.Context, id int, updates map[string]*string) (entity.Record, error) {
@@ -103,65 +185,4 @@ func (s *SqliteRecordService) UpdateRecord(ctx context.Context, id int, updates 
 	}
 
 	return entry.Copy(), nil
-}
-
-// findInsureds returns a list of insureds matching a filter. Also returns a count of
-// total matching insureds which may differ if filter.Limit is set.
-func findInsureds(ctx context.Context, tx *sqlite.Tx, filter entity.InsuredFilter) (_ []*entity.Insured, n int, err error) {
-	// Build WHERE clause.
-	where, args := []string{"1 = 1"}, []interface{}{}
-	if v := filter.ID; v != nil {
-		where, args = append(where, "id = ?"), append(args, *v)
-	}
-	if v := filter.Name; v != nil {
-		where, args = append(where, "name = ?"), append(args, *v)
-	}
-	if v := filter.PolicyNumber; v != nil {
-		where, args = append(where, "policy_number = ?"), append(args, *v)
-	}
-	if v := filter.RecordTimestamp; v != nil {
-		where, args = append(where, "record_timestamp = ?"), append(args, *v)
-	}
-	fmt.Println("service.SqliteRecordService findInsureds")
-	// Execute query to fetch insured rows.
-	rows, err := tx.QueryContext(ctx, `
-		SELECT 
-		    id,
-		    name,
-		    policy_number,		    
-		    record_timestamp,
-		    COUNT(*) OVER()
-		FROM insured
-		WHERE `+strings.Join(where, " AND ")+`
-		ORDER BY id ASC
-		`+sqlite.FormatLimitOffset(filter.Limit, filter.Offset),
-		args...,
-	)
-	if err != nil {
-		return nil, n, err
-	}
-	defer rows.Close()
-
-	// Deserialize rows into Insured objects.
-	insureds := make([]*entity.Insured, 0)
-	for rows.Next() {
-		var insured entity.Insured
-		if err := rows.Scan(
-			&insured.ID,
-			&insured.Name,
-			&insured.PolicyNumber,
-			(*sqlite.NullTime)(&insured.RecordTimestamp), // TODO: get NullTime to work
-
-			&n,
-		); err != nil {
-			return nil, 0, err
-		}
-
-		insureds = append(insureds, &insured)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, err
-	}
-
-	return insureds, n, nil
 }

@@ -19,6 +19,10 @@ const (
 	ENOTFOUND       = "not_found"
 	ENOTIMPLEMENTED = "not_implemented"
 	EUNAUTHORIZED   = "unauthorized"
+
+	ErrRecordDoesNotExist = "record with that id does not exist"
+	ErrRecordIDInvalid = "record id must >= 0"
+	ErrRecordAlreadyExists = "record already exists"
 )
 
 // Error represents an application-specific error. Application errors can be
