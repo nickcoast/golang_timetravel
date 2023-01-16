@@ -1,6 +1,8 @@
 package entity
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Record struct {
 	ID   int               `json:"id"`
@@ -32,3 +34,23 @@ func (d *Record) SetID(id int) {
 	d.ID = id
 	fmt.Println("Record.SetID", d.ID)
 }
+
+/* func (d *Record) MarshalJSON() ([]byte, error) {
+
+
+
+	emp, ok := d.Data["employees"]
+	empBytes := []byte(emp)
+
+	data := d.Data
+	byteData := map[string]byte
+	rrr := map[string]entity.Record{}
+	for i, d := range d.Data {
+
+	}
+	return json.Marshal(&struct {
+		ID	int `json:"id"`
+		Data
+	})
+}
+*/

@@ -221,6 +221,14 @@ func (db *DB) GetById(ctx context.Context, tableName string, id int64) (record e
 	return record, err
 }
 
+/* func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.Time) (record entity.Record, err error) {
+
+
+
+
+
+} */
+
 // TODO: can remove naturalKey from signature?
 func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string, insuredId int64, date time.Time) (record entity.Record, err error) {
 	id := insuredId
@@ -252,7 +260,7 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 		groupBy = "t2.name"
 	} else {
 		groupBy = "t1.id"
-	}	
+	}
 	query := `SELECT t2.*, MAX(t2.record_timestamp) as max_timestamp` + "\n" +
 		`FROM insured t1` + "\n" +
 		`JOIN ` + tableName + ` t2 ON t1.id = t2.insured_id` + "\n" +
@@ -296,7 +304,7 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 		return record, err
 	}
 
-	jsonData := map[string]string{}
+	var jsonData map[string]json.RawMessage
 	//complexRecord := entity.Record{}
 	for _, n := range dbRecords {
 		// convert to string map
@@ -323,23 +331,37 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 		}
 		jD, err := json.Marshal(record)
 		if err != nil {
-			return entity.Record{}, err
+			return entity.Record{}, FormatError(err)
 		}
-		jDString := string(jD)
-		jsonData[strconv.Itoa(record.ID)] = jDString
+		err = json.Unmarshal(jD, &jsonData)
+		if err != nil {
+			return entity.Record{}, FormatError(err)
+		}
+		/* jDString := string(jD)
+		jsonData[strconv.Itoa(record.ID)] = jDString */
 	}
 
 	collectionJSON, err := json.Marshal(jsonData)
 	if err != nil {
 		return entity.Record{}, FormatError(err)
 	}
-	collectionJSONMap := map[string]string{
+	/* collectionJSONMap := map[string]string{
 		tableName: string(collectionJSON),
+	} */
+
+	data := map[string]string{
+		"employees": string(collectionJSON[:]),
 	}
+	/* err = json.Unmarshal(collectionJSON, &data)
+	if err != nil {
+		fmt.Println("34333333333333333333 THE RECORD", record, err)
+		return entity.Record{}, FormatError(err)
+	} */	
 	record = entity.Record{
 		ID:   int(id),
-		Data: collectionJSONMap,
+		Data: data,
 	}
+	fmt.Println("THE RECORD", record)
 	tx.Commit()
 	return record, nil
 }
