@@ -20,6 +20,14 @@ type Insured struct {
 	RecordTimestamp time.Time `json:"recordTimestamp"`
 }
 
+type InsuredCollection struct {
+	Insureds map[int]*Insured
+}
+
+func (u *InsuredCollection) Append(insured *Insured) {
+	u.Insureds[insured.ID] = insured
+}
+
 // Validate returns an error if the insured contains invalid fields.
 // This only performs basic validation.
 func (u *Insured) Validate() error {

@@ -220,7 +220,7 @@ func (db *DB) GetById(ctx context.Context, tableName string, id int64) (record e
 	return record, err
 }
 
-func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string, insuredId int64, date time.Time) (records entity.Record, err error) {
+func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string, insuredId int64, date time.Time) (records map[int]entity.Record, err error) {
 	id := insuredId
 	if id == 0 {
 		return records, ErrRecordDoesNotExist
@@ -233,7 +233,13 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 		fmt.Println("naturalKey", naturalKey)
 		return records, fmt.Errorf("DB - key not allowed.")
 	}
-
+	asdf := map[int]string{}
+	keys := make([]int, 0, len(asdf))
+	for k := range asdf {
+		keys = append(keys, k)
+	}
+	
+	
 	timestamp := date.Unix()
 	fmt.Println("DB.GetByDate timestamp", timestamp)
 	tx, err := db.db.Begin()
@@ -260,41 +266,51 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 	columnNames, err := rows.Columns()
 	fmt.Println(columnNames)
 	recordMap := map[string]string{}
-	m := make(map[string]interface{})
+	//m := make(map[string]interface{})
+	newRecords := make(map[int]map[string]interface{})
+	i := 0
 	for rows.Next() {
 		columns := make([]interface{}, len(columnNames))
 		columnPointers := make([]interface{}, len(columnNames))
-
 		for i := range columns {
 			columnPointers[i] = &columns[i]
 		}
-
+		// Scan result into the pointers
 		if err := rows.Scan(columnPointers...); err != nil {
 			return records, err
 		}
 		// Make map, get value for each column
+		m := make(map[string]interface{})
 		for i, colName := range columnNames {
 			val := columnPointers[i].(*interface{})
 			m[colName] = *val
 		}
+		newRecords[i] = m
+		i++
 	}
 	fmt.Println(recordMap)
 	if err := rows.Err(); err != nil {
 		return records, err
 	}
 
-	// convert to string map
-	data := make(map[string]string)
-	for key, value := range m { // TODO: if strVal != "0001-01-01" to skip our fake "NULL" date values
-		strKey := fmt.Sprintf("%v", key)
-		strVal := fmt.Sprintf("%v", value)
-		data[strKey] = strVal
+	
+	for i, n := range newRecords {		
+		// convert to string map
+		data := make(map[string]string)
+		for key, value := range n { 
+			strVal := fmt.Sprintf("%v", value)
+			if strVal != "0001-01-01" { // skip our fake "NULL" date values
+			strKey := fmt.Sprintf("%v", key)			
+			data[strKey] = strVal
+			}
+		}
+		records[i] = entity.Record{
+			ID:   int(id),
+			Data: data,
+		}
 	}
 
-	records = entity.Record{
-		ID:   int(id),
-		Data: data,
-	}
+	
 	tx.Commit()
 	return records, err
 }

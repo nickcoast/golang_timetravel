@@ -23,6 +23,14 @@ type Employee struct {
 	RecordTimestamp time.Time `json:"recordTimestamp"`
 }
 
+type EmployeeCollection struct {
+	Employees map[int]*Employee
+}
+
+func (u *EmployeeCollection) Append(employee *Employee) {
+	u.Employees[employee.ID] = employee // check record.ID first?
+}
+
 // Validate returns an error if the employee contains invalid fields.
 // This only performs basic validation.
 func (u *Employee) Validate() error {
