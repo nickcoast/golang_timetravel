@@ -240,6 +240,7 @@ func createInsured(ctx context.Context, tx *Tx, insured *entity.Insured) (newRec
 	if err != nil {
 		return newRecord, err
 	}
+	// TODO: try to set newRecord using DB.GetById
 	insured.ID = int(id)
 	newRecord = insured.ToRecord()
 

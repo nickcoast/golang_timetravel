@@ -13,7 +13,7 @@ import (
 // Get this unique records for this resources valid at this date
 func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	resource := mux.Vars(r)["type"]	
+	resource := mux.Vars(r)["type"]
 	date := mux.Vars(r)["date"]
 	naturalKey := "date" // might rename this to groupingKey.
 	insuredId := mux.Vars(r)["insuredId"]
@@ -21,11 +21,11 @@ func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println("api.GetResourceByDate date:", date)
 	fmt.Println("api.GetResourceByDate resource:", resource)
-	dateTime, err := time.Parse("2006-01-02",date)
+	dateTime, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		err := writeError(w, fmt.Sprintf("Please submit date in format: 2006-01-02"), http.StatusBadRequest)
 		logError(err)
-	}	
+	}
 
 	record, err := a.sqlite.GetRecordByDate(
 		ctx,
@@ -35,7 +35,7 @@ func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 		dateTime,
 	)
 	if err != nil {
-		err := writeError(w, fmt.Sprintf("No records %v does not exist", idNumber), http.StatusBadRequest)
+		err := writeError(w, fmt.Sprintf("No record for Insured %v and date %v exist", idNumber, date), http.StatusBadRequest)
 		logError(err)
 		return
 	}
