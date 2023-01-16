@@ -88,9 +88,11 @@ func (e *Insured) ToRecord() Record {
 func (e *Insured) FromRecord(r Record) (err error) {
 	e.ID = r.ID
 	e.Name = r.Data["name"]
-	/* e.StartDate, err = time.Parse("2006-01-02", r.Data["start_date"])
-	//e.EndDate, _ = time.Parse
-	e.InsuredId, err = strconv.Atoi(r.Data["insured_id"]) */
+	pn, err := strconv.Atoi(r.Data["policy_number"])
+	if err != nil {
+		return err
+	}
+	e.PolicyNumber = pn
 	timestampInt, err := strconv.Atoi(r.Data["record_timestamp"])
 	e.RecordTimestamp = time.Unix(int64(timestampInt), 0)
 	return err

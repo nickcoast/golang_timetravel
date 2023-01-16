@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
+	"strconv"
 
 	"database/sql/driver"
 	"embed"
@@ -219,7 +220,7 @@ func (db *DB) GetById(ctx context.Context, tableName string, id int64) (record e
 	return record, err
 }
 
-func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string, insuredId int, date time.Time) (records entity.Record, err error) {
+func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string, insuredId int64, date time.Time) (records entity.Record, err error) {
 	id := insuredId
 	if id == 0 {
 		return records, ErrRecordDoesNotExist
@@ -241,13 +242,13 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 	}
 	defer tx.Rollback()
 
-	fmt.Println("sqlite DB.GetById")
+	fmt.Println("sqlite DB.GetByDate")
 
 	// TODO: change record_timestamp to "?""
 	rows, err := tx.QueryContext(ctx,
 		`SELECT *, MAX(record_timestamp) as max_timestamp 
 		FROM `+tableName+`
-		WHERE record_timestamp < 1673692615
+		WHERE record_timestamp <= `+strconv.Itoa(int(timestamp))+`
 		AND insured_id = ?
 		GROUP BY insured_id, `+naturalKey, id)
 
@@ -284,7 +285,7 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 
 	// convert to string map
 	data := make(map[string]string)
-	for key, value := range m {
+	for key, value := range m { // TODO: if strVal != "0001-01-01" to skip our fake "NULL" date values
 		strKey := fmt.Sprintf("%v", key)
 		strVal := fmt.Sprintf("%v", value)
 		data[strKey] = strVal

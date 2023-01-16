@@ -145,14 +145,14 @@ func (s *SqliteRecordService) CreateRecord(ctx context.Context, resource string,
 }
 
 // TODO: use map for natural key, or struct
-func (s *SqliteRecordService) GetRecordByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, date time.Time) (entity.Record, error) {
+func (s *SqliteRecordService) GetRecordByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, dateValid time.Time) (entity.Record, error) {
 	if insuredId == 0 {
 		return entity.Record{}, ErrRecordDoesNotExist
 	}
 	if resource == "employee" {
 		resource = "employees"
 	}
-	e, err := s.service.Db.GetById(ctx, resource, insuredId)
+	e, err := s.service.Db.GetByDate(ctx, resource, naturalKey, insuredId, dateValid)
 	if err != nil {
 		return entity.Record{}, ErrRecordDoesNotExist
 	}

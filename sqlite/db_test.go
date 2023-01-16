@@ -60,10 +60,10 @@ func TestDB_GetResourceById(tb *testing.T) {
 	past, err := time.Parse("2006-01-02 15:04:05", "2006-01-02 15:04:05")
 	pastTimestamp := past
 	db := MustOpenDB(tb)
-		defer MustCloseDB(tb, db)
+	defer MustCloseDB(tb, db)
 	// Ensure Resource can be gotten by ID
 	tb.Run("TestDB_GetResourceById_Insured", func(tb *testing.T) { // TODO: add employees, addresses tests
-		
+
 		//s := sqlite.NewInsuredService(db)
 
 		if err != nil {
@@ -139,7 +139,16 @@ func TestDB_GetResourceByDate(tb *testing.T) {
 		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "john" /* PolicyNumber: 500, */, RecordTimestamp: now}) // id: 3
 		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "jane" /* PolicyNumber: 501, */, RecordTimestamp: now})
 		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "frank" /* PolicyNumber: 502, */, RecordTimestamp: now})
-		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "sue" /* PolicyNumber: 503, */, RecordTimestamp: pastTimestamp}) // id: 6, pn: 1005
+		sue, _ := MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "sue" /* PolicyNumber: 503, */, RecordTimestamp: pastTimestamp}) // id: 6, pn: 1005
+		fmt.Print("SUUUUUUUUUUE", sue)
+
+		/* MustCreateEmployee(tb, ctx, db, employee{Name: "Sue 1,"}) */
+		employees, timestamps, ctx := MustCreateEmployees(tb, ctx, db, sue)
+		fmt.Println("employees", employees)
+
+		for _, t := range timestamps {
+			db.GetByDate(ctx, "employees", "name", int64(sue.ID), t.Add(time.Second*1))
+		}
 
 		pastTimestampString := strconv.FormatInt(pastTimestamp.Unix(), 10)
 		insuredID := 6
@@ -151,7 +160,7 @@ func TestDB_GetResourceByDate(tb *testing.T) {
 		}
 
 		fmt.Println("wantRecord", wantRecord)
-		if record, err := db.GetByDate(ctx, "employees", "name", insuredID, now); err != nil {
+		if record, err := db.GetByDate(ctx, "employees", "name", int64(insuredID), now); err != nil {
 			tb.Fatal(err)
 		} else if got, want := record.ID, insuredID; got != want {
 			tb.Fatalf("ID=%v, want %v", got, want)

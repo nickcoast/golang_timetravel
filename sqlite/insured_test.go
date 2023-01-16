@@ -175,7 +175,7 @@ func TestInsuredService_FindInsureds(t *testing.T) {
 		MustCreateInsured(t, ctx, db, &entity.Insured{Name: "john" /* PolicyNumber: 1002, */, RecordTimestamp: time.Now().UTC()})
 		MustCreateInsured(t, ctx, db, &entity.Insured{Name: "jane" /* PolicyNumber: 1003, */, RecordTimestamp: time.Now().UTC()})
 		MustCreateInsured(t, ctx, db, &entity.Insured{Name: "frank" /* PolicyNumber: 1004, */, RecordTimestamp: time.Now().UTC()})
-		MustCreateInsured(t, ctx, db, &entity.Insured{Name: "sue" /* PolicyNumber: 1005, */, RecordTimestamp: time.Now().UTC()}) // PolicyNumber 1005
+		MustCreateInsured(t, ctx, db, &entity.Insured{Name: "sue" /* PolicyNumber: 1005, */, RecordTimestamp: time.Now().UTC()}) // PolicyNumber 1005. id 6?
 
 		policyNumber := 1003
 		if a, n, err := s.FindInsureds(ctx, entity.InsuredFilter{PolicyNumber: &policyNumber}); err != nil {
@@ -188,6 +188,73 @@ func TestInsuredService_FindInsureds(t *testing.T) {
 			t.Fatalf("n=%v, want %v", got, want)
 		}
 	})
+}
+
+func MustCreateEmployees(tb testing.TB, ctx context.Context, db *sqlite.DB, insured entity.Insured) ([]*entity.Employee, map[int]time.Time, context.Context) {
+	tb.Helper()
+	timestampFirst, _ := time.Parse("2006-01-02 15:04:05", "2022-01-02 15:04:05")
+	timestampSecond := timestampFirst.Add(time.Hour * 24 * 30)
+	timestampThird := timestampSecond.Add(time.Hour * 24 * 30) // TODO: add "NULL" date for employee2 first record
+	//timestampFourth := timestampThird.Add(time.Hour * 24 * 30)
+
+	startDateOrig := timestampFirst
+	startDateUpdate := timestampFirst.Add(time.Hour * 24 * 30) // update to 30 days later
+	endDateOrig := startDateOrig.Add(time.Hour * 24 * 365)     //
+	endDateUpdate := endDateOrig.Add(time.Hour * 24 * 30)      //update to 30 days later
+
+	employeeName := insured.Name + " 1"
+	employeeName2 := insured.Name + " 2"
+	insuredId := insured.ID
+
+	var employees = []*entity.Employee{
+		&entity.Employee{
+			Name:            employeeName,
+			StartDate:       startDateOrig,
+			EndDate:         endDateOrig,
+			InsuredId:       insuredId,
+			RecordTimestamp: timestampFirst,
+		},
+		{
+			Name:            employeeName,
+			StartDate:       startDateUpdate, // UPDATE
+			EndDate:         endDateOrig,     // SAME
+			InsuredId:       insuredId,
+			RecordTimestamp: timestampSecond,
+		},
+		{
+			Name:            employeeName,
+			StartDate:       startDateUpdate,
+			EndDate:         endDateUpdate, // UPDATE
+			InsuredId:       insuredId,
+			RecordTimestamp: timestampThird,
+		},
+		{
+			Name:            employeeName2,
+			StartDate:       startDateOrig.Add(time.Hour * -24),
+			EndDate:         endDateOrig,
+			InsuredId:       insuredId,
+			RecordTimestamp: timestampFirst.Add(time.Hour * -24),
+		},
+		{
+			Name:            employeeName2,
+			StartDate:       startDateUpdate, // UPDATE
+			EndDate:         endDateOrig,     // SAME
+			InsuredId:       insuredId,
+			RecordTimestamp: timestampSecond,
+		},
+	}
+
+	for _, e := range employees {
+		MustCreateEmployee(tb, ctx, db, e)
+	}
+
+	timestamps := map[int]time.Time{ // for return
+		0: timestampFirst,
+		1: timestampSecond,
+		2: timestampThird,
+		3: timestampFirst.Add(time.Hour * -24),
+	}
+	return employees, timestamps, ctx
 }
 
 // MustCreateInsured creates a insured in the database. Fatal on error.
