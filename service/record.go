@@ -33,6 +33,7 @@ type RecordService interface {
 	DeleteRecord(ctx context.Context, resource string, id int64) (entity.Record, error)
 
 	GetRecordByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, date time.Time) (records entity.Record, err error)
+	GetInsuredByDate(ctx context.Context, insuredId int64, date time.Time) (insured entity.Insured, err error)
 }
 
 // InMemoryRecordService is an in-memory implementation of RecordService.
@@ -51,7 +52,12 @@ func (s *InMemoryRecordService) GetRecordByDate(ctx context.Context, resource st
 	return entity.Record{}, fmt.Errorf("Cannot currently get memory resource by date")
 }
 
-func (s *InMemoryRecordService) DeleteRecord(ctx context.Context, resource string, id int64) (record entity.Record, err error) {	
+// no API route will lead here.
+func (s *InMemoryRecordService) GetInsuredByDate(ctx context.Context, insuredId int64, date time.Time) (insured entity.Insured, err error) {
+	return entity.Insured{}, fmt.Errorf("Cannot currently get memory resource by date")
+}
+
+func (s *InMemoryRecordService) DeleteRecord(ctx context.Context, resource string, id int64) (record entity.Record, err error) {
 	record = s.data[int(id)]
 	delete(s.data, int(id))
 	// return deleted record, give user chance to "undo" if deleted by mistake

@@ -257,6 +257,56 @@ func MustCreateEmployees(tb testing.TB, ctx context.Context, db *sqlite.DB, insu
 	return employees, timestamps, ctx
 }
 
+func MustCreateInsuredAddresses(tb testing.TB, ctx context.Context, db *sqlite.DB, insured entity.Insured) ([]*entity.Address, map[int]time.Time, context.Context) {
+	tb.Helper()
+	// 1st timestamp same as in employees. 2nd +1 and 3rd -1
+	timestampFirst, _ := time.Parse("2006-01-02 15:04:05", "2022-01-02 15:04:05")
+	timestampSecond := timestampFirst.Add(time.Hour * 24 * 30 +1)
+	timestampThird := timestampSecond.Add(time.Hour * 24 * 30 -1) 
+	//timestampFourth := timestampThird.Add(time.Hour * 24 * 30)
+
+	addressOrig := "123 Fake Street, Springfield, Oregon"
+	addressUpdate := "The Shining City On The Hill"
+	addressThird := "Atlantis"
+	addressFourth := "A Van Down By The River"
+	insuredId := insured.ID
+	
+	var addresss = []*entity.Address{
+		{
+			Address:         addressOrig,
+			InsuredId:       insuredId,
+			RecordTimestamp: timestampFirst,
+		},
+		{			
+			Address:      	 addressUpdate,			
+			InsuredId:       insuredId,
+			RecordTimestamp: timestampSecond,
+		},
+		{			
+			Address:      	 addressThird,			
+			InsuredId:       insuredId,
+			RecordTimestamp: timestampThird,
+		},
+		{			
+			Address:       	 addressFourth,			
+			InsuredId:       insuredId,
+			RecordTimestamp: timestampFirst.Add(time.Hour * -24),
+		},
+	
+	}
+	for _, e := range addresss {
+		MustCreateAddress(tb, ctx, db, e)
+	}
+
+	timestamps := map[int]time.Time{ // for return
+		0: timestampFirst,
+		1: timestampSecond,
+		2: timestampThird,
+		3: timestampFirst.Add(time.Hour * -24),
+	}
+	return addresss, timestamps, ctx
+}
+
 // MustCreateInsured creates a insured in the database. Fatal on error.
 // Returns from newly created Insured in DB
 func MustCreateInsured(tb testing.TB, ctx context.Context, db *sqlite.DB, insured *entity.Insured) (newInsured entity.Insured, c context.Context) {
@@ -297,3 +347,60 @@ func MustCreateInsured(tb testing.TB, ctx context.Context, db *sqlite.DB, insure
 		}
 	})
 } */
+
+func TestInsuredService_GetInsuredByDate(tb *testing.T) {
+	// Ensure Resource can be gotten by ID
+	tb.Run("TestInsuredService_GetInsuredByDat", func(tb *testing.T) { // TODO: add employees, addresses tests
+		db := MustOpenDB(tb)
+		defer MustCloseDB(tb, db)
+		//s := sqlite.NewInsuredService(db)
+
+		ctx := context.Background()
+		past, err := time.Parse("2006-01-02 15:04:05", "2006-01-02 15:04:05")
+		if err != nil {
+			tb.Fatalf("Failed to create past time")
+		}
+		pastTimestamp := past
+		now := time.Now()
+		fmt.Println("pastTimestamp", pastTimestamp, "now", now)
+		// Starts at id:3, policy_number 1002
+		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "john" /* PolicyNumber: 500, */, RecordTimestamp: now}) // id: 3
+		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "jane" /* PolicyNumber: 501, */, RecordTimestamp: now})
+		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "frank" /* PolicyNumber: 502, */, RecordTimestamp: now})
+		sue, _ := MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "sue" /* PolicyNumber: 503, */, RecordTimestamp: pastTimestamp}) // id: 6, pn: 1005
+		fmt.Print("SUUUUUUUUUUE", sue)
+
+		/* MustCreateEmployee(tb, ctx, db, employee{Name: "Sue 1,"}) */
+		employees, timestamps, ctx := MustCreateEmployees(tb, ctx, db, sue)
+		fmt.Println("employees", employees)
+
+		insureds := map[int]entity.Insured{}
+		for _, t := range timestamps {
+			insured, err := db.GetInsuredByDate(ctx, int64(sue.ID), t.Add(time.Second*1)) // make this so each call should get ONE record?
+			if err != nil {
+				tb.Fatalf("Failed to GetInsuredByDate")
+			}
+			insureds[insured.ID] = insured
+		}
+
+		pastTimestampString := strconv.FormatInt(pastTimestamp.Unix(), 10)
+		insuredID := 6
+		m := map[string]string{"id": strconv.Itoa(insuredID), "name": "sue", "policy_number": "1005", "record_timestamp": pastTimestampString}
+
+		wantRecord := entity.Record{
+			ID:   int(insuredID),
+			Data: m,
+		}
+
+		fmt.Println("wantRecord", wantRecord)
+		/* if record, err := db.GetByDate(ctx, "employees", "name", int64(insuredID), now); err != nil {
+			tb.Fatal(err)
+		} else if got, want := record.ID, insuredID; got != want {
+			tb.Fatalf("ID=%v, want %v", got, want)
+		} else if got, want := record.ID, wantRecord.ID; !cmp.Equal(got, want) { // ?? why doesn't it pass if I compare the structs??
+			tb.Fatalf("No match. got record: %v, want: %v", got, want)
+		} else if got, want := record.Data, wantRecord.Data; !cmp.Equal(got, want) {
+			tb.Fatalf("No match. got record: %v, want: %v", got, want)
+		} */
+	})
+}

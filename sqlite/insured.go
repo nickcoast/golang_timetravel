@@ -73,6 +73,22 @@ func (s *InsuredService) CreateInsured(ctx context.Context, insured *entity.Insu
 	return record, tx.Commit()
 }
 
+// CreateInsured creates a new insured.
+func (s *InsuredService) CreateAddress(ctx context.Context, address *entity.Address) (record entity.Record, err error) {
+	tx, err := s.Db.BeginTx(ctx, nil)
+	if err != nil {
+		return record, err
+	}
+	defer tx.Rollback()
+
+	// Create a new insured object
+	record, err = createAddress(ctx, tx, address)
+	if err != nil {
+		return record, err
+	}
+	return record, tx.Commit()
+}
+
 func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Employee) (record entity.Record, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
@@ -206,8 +222,7 @@ func findInsureds(ctx context.Context, tx *Tx, filter entity.InsuredFilter) (_ [
 	return insureds, n, nil
 }
 
-// createInsured creates a new insured. Sets the new database ID to insured.ID and sets
-// the timestamps to the current time.
+// creates a new insured. Sets the new record ID to insured.ID and retrieves new policyNumber
 func createInsured(ctx context.Context, tx *Tx, insured *entity.Insured) (newRecord entity.Record, err error) {
 	// Perform basic field validation.
 	if err := insured.Validate(); err != nil {
@@ -232,7 +247,6 @@ func createInsured(ctx context.Context, tx *Tx, insured *entity.Insured) (newRec
 		insured.RecordTimestamp.Unix(), // can use a Scan method here if necessary
 	)
 	if err != nil {
-		fmt.Println("asdf")
 		return newRecord, FormatError(err)
 	}
 
@@ -247,17 +261,46 @@ func createInsured(ctx context.Context, tx *Tx, insured *entity.Insured) (newRec
 	return newRecord, nil
 }
 
-// createEmployee creates a new employee. Sets the new database ID to insured.ID and sets
-// the timestamps to the current time.
+// creates a new address for insured
+func createAddress(ctx context.Context, tx *Tx, address *entity.Address) (newRecord entity.Record, err error) {
+	// Perform basic field validation.
+	if err := address.Validate(); err != nil {
+		return newRecord, err
+	}
+	query := `
+	INSERT INTO insured_addresses (` + "\n" +
+		`	address,` + "\n" +
+		`	insured_id,` + "\n" +
+		`	record_timestamp` + "\n" +
+		`)` + "\n" +
+		`VALUES (?, ?, ?)`
+	fmt.Println("createAddress: ", address.Address, "insured_id:", address.InsuredId, "timestamp:", address.RecordTimestamp.Unix(), "\nQuery:\n", query)
+	result, err := tx.ExecContext(ctx, query,
+		address.Address,
+		address.InsuredId,
+		address.RecordTimestamp.Unix(), // can use a Scan method here if necessary
+	)
+	if err != nil {
+		return newRecord, FormatError(err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return newRecord, err
+	}
+	// TODO: try to set newRecord using DB.GetById
+	address.ID = int(id)
+	newRecord = address.ToRecord()
+
+	return newRecord, nil
+}
+
+// createEmployee creates a new employee.
 func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (record entity.Record, err error) {
 	// Perform basic field validation.
 	if err := employee.Validate(); err != nil {
 		return record, err
 	}
-
-	// Execute insertion query. // TODO: implement "auto increment" for policy_number
-	//dateVal = (employee.EndDate < time.Parse("2006-01-02","1971-01-01") ? nil : employee.EndDate.Format("2006-01-02"))
-
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO employees (
 			name,

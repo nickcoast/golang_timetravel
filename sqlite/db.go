@@ -3,7 +3,6 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"reflect"
 	"strconv"
@@ -44,7 +43,7 @@ func NewDB(dsn string) *DB {
 	tn := make(map[string]int)
 	tn["insured"] = 0
 	tn["employees"] = 1
-	tn["addresses"] = 2
+	tn["insured_addresses"] = 2
 	ank := make(map[string]int)
 	ank["name"] = 0
 	ank["address"] = 1
@@ -221,27 +220,61 @@ func (db *DB) GetById(ctx context.Context, tableName string, id int64) (record e
 	return record, err
 }
 
-// TODO: can remove naturalKey from signature?
-func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string, insuredId int64, date time.Time) (record entity.Record, err error) {
-	id := insuredId
-	if id == 0 {
-		return record, ErrRecordDoesNotExist
+// Get Insured entity with component employees and addresses valid at a particular date.
+func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.Time) (insured entity.Insured, err error) {
+	if insuredId == 0 {
+		return insured, ErrRecordDoesNotExist
 	}
-	if _, ok := db.tableNames[tableName]; !ok {
-		fmt.Println("tableName", tableName)
-		return record, fmt.Errorf("DB - table name doesn't exist.")
-	}
-	// TODO: re-enable this
-	/* if _, ok := db.allowedNaturalKeys[naturalKey]; !ok {
-		fmt.Println("naturalKey", naturalKey)
-		return record, fmt.Errorf("DB - key not allowed.")
-	} */
 
 	timestamp := date.Unix()
 	fmt.Println("DB.GetByDate timestamp", timestamp)
 	tx, err := db.db.Begin()
 	if err != nil {
-		return record, err
+		return insured, err
+	}
+	defer tx.Rollback()
+
+	fmt.Println("sqlite DB.GetInsuredByDate")
+
+	employeeRecords, err := db.GetByDate(ctx, "employees", "naturalkey", insuredId, date)
+	if err != nil {
+		return entity.Insured{}, FormatError(err)
+	}
+	addressRecords, err := db.GetByDate(ctx, "insured_addresses", "naturalkey", insuredId, date)
+	if err != nil {
+		return entity.Insured{}, FormatError(err)
+	}
+	insuredRecord, err := db.GetById(ctx, "insured", insuredId)
+	if err != nil {
+		return entity.Insured{}, FormatError(err)
+	}
+
+	employees, err := entity.EmployeesFromRecords(employeeRecords)
+	addresses, err := entity.AddressesFromRecords(addressRecords)
+	insured.FromRecord(insuredRecord)
+	insured.Employees = &employees
+	insured.Addresses = &addresses
+
+	tx.Commit()
+	return insured, nil
+}
+
+// TODO: can remove naturalKey from signature?
+func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string, insuredId int64, date time.Time) (records map[int]entity.Record, err error) {
+	id := insuredId
+	if id == 0 {
+		return map[int]entity.Record{}, ErrRecordDoesNotExist
+	}
+	if _, ok := db.tableNames[tableName]; !ok {
+		fmt.Println("tableName", tableName)
+		return map[int]entity.Record{}, fmt.Errorf("DB - table name doesn't exist.")
+	}
+
+	timestamp := date.Unix()
+	fmt.Println("DB.GetByDate timestamp", timestamp)
+	tx, err := db.db.Begin()
+	if err != nil {
+		return map[int]entity.Record{}, err
 	}
 	defer tx.Rollback()
 
@@ -252,18 +285,18 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 		groupBy = "t2.name"
 	} else {
 		groupBy = "t1.id"
-	}	
+	}
 	query := `SELECT t2.*, MAX(t2.record_timestamp) as max_timestamp` + "\n" +
 		`FROM insured t1` + "\n" +
 		`JOIN ` + tableName + ` t2 ON t1.id = t2.insured_id` + "\n" +
 		`WHERE t2.record_timestamp <= ` + strconv.Itoa(int(timestamp)) + "\n" +
 		`AND t1.id = ?` + "\n" +
 		`GROUP BY insured_id, ` + groupBy
-	fmt.Println(query)
+	fmt.Println("!!!!!!!!!!!!!!!", tableName, ", insureID: ", insuredId, " QUERY:\n", query)
 	rows, err := tx.QueryContext(ctx, query, id)
 	if err != nil {
 		fmt.Println("bad query")
-		return record, fmt.Errorf("Query failed")
+		return map[int]entity.Record{}, fmt.Errorf("Query failed")
 	}
 	// https://kylewbanks.com/blog/query-result-to-map-in-golang
 	columnNames, err := rows.Columns()
@@ -280,7 +313,7 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 		}
 		// Scan result into the pointers
 		if err := rows.Scan(columnPointers...); err != nil {
-			return record, err
+			return map[int]entity.Record{}, err
 		}
 		// Make map, get value for each column
 		m := make(map[string]interface{})
@@ -293,10 +326,10 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 	}
 	fmt.Println(recordMap)
 	if err := rows.Err(); err != nil {
-		return record, err
+		return map[int]entity.Record{}, err
 	}
 
-	jsonData := map[string]string{}
+	records = map[int]entity.Record{}
 	//complexRecord := entity.Record{}
 	for _, n := range dbRecords {
 		// convert to string map
@@ -308,40 +341,20 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 				data[strKey] = strVal
 			}
 		}
-		/* complexRecord.Data["employees"] = map[string][string]{
-			"id":id
-		} */
-
-		//a := "{'employees' : { "+string(jsonData)+"}"
 		recordId, err := strconv.Atoi(data["id"])
 		if err != nil {
-			return entity.Record{}, FormatError(ErrRecordIDInvalid)
+			return map[int]entity.Record{}, FormatError(ErrRecordIDInvalid)
 		}
-		record = entity.Record{
+		record := entity.Record{
 			ID:   recordId,
 			Data: data,
 		}
-		jD, err := json.Marshal(record)
-		if err != nil {
-			return entity.Record{}, err
-		}
-		jDString := string(jD)
-		jsonData[strconv.Itoa(record.ID)] = jDString
+		records[recordId] = record
 	}
 
-	collectionJSON, err := json.Marshal(jsonData)
-	if err != nil {
-		return entity.Record{}, FormatError(err)
-	}
-	collectionJSONMap := map[string]string{
-		tableName: string(collectionJSON),
-	}
-	record = entity.Record{
-		ID:   int(id),
-		Data: collectionJSONMap,
-	}
+	fmt.Println(records)
 	tx.Commit()
-	return record, nil
+	return records, nil
 }
 
 func (db *DB) DeleteById(ctx context.Context, tableName string, id int64) (deletedRecord entity.Record, err error) {

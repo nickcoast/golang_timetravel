@@ -17,14 +17,12 @@ func (a *API) GetResourceById(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("api.GetInsuredsById id:", id)
 	fmt.Println("api.GetInsuredsById resource:", resource)
 	idNumber, err := strconv.ParseInt(id, 10, 32)
-
 	if err != nil || idNumber <= 0 {
 		err := writeError(w, "invalid id; id must be a positive number", http.StatusBadRequest)
 		logError(err)
 		return
 	}
 
-	//record, err := a.sqlite.
 
 	record, err := a.sqlite.GetRecordById(
 		ctx,

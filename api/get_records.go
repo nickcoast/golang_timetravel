@@ -23,6 +23,7 @@ func (a *API) GetRecords(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	
 	record, err := a.records.GetRecordById(
 		ctx,
 		resource,
