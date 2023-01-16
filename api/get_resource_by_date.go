@@ -26,6 +26,19 @@ func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 		err := writeError(w, fmt.Sprintf("Please submit date in format: 2006-01-02"), http.StatusBadRequest)
 		logError(err)
 	}
+	//record, err := a.sqlite.
+
+	if resource == "insured" {
+		insured, err := a.sqlite.GetInsuredByDate(ctx, idNumber, dateTime)
+		if err != nil {
+			err := writeError(w, fmt.Sprintf("No record for Insured %v and date %v exist", idNumber, date), http.StatusBadRequest)
+			logError(err)
+			return
+		}
+		err = writeJSON(w, insured, http.StatusOK)
+		logError(err)
+		return
+	}
 
 	record, err := a.sqlite.GetRecordByDate(
 		ctx,

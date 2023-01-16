@@ -144,6 +144,10 @@ func (s *SqliteRecordService) CreateRecord(ctx context.Context, resource string,
 
 }
 
+func (s *SqliteRecordService) GetInsuredByDate(ctx context.Context, insuredId int64, dateValid time.Time) (entity.Insured, error) {
+	return s.service.Db.GetInsuredByDate(ctx, insuredId, dateValid)
+}
+
 // TODO: use map for natural key, or struct
 func (s *SqliteRecordService) GetRecordByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, dateValid time.Time) (entity.Record, error) {
 	if insuredId == 0 {
@@ -156,9 +160,11 @@ func (s *SqliteRecordService) GetRecordByDate(ctx context.Context, resource stri
 	if err != nil {
 		return entity.Record{}, ErrRecordDoesNotExist
 	}
-	fmt.Println("service.SqliteRecordService.GetRecordByDate: Data", e.Data, "requested id", e.ID)
-
-	return e, nil
+	fmt.Println("service.SqliteRecordService.GetRecordByDate: records", e)
+	for _, r := range e {
+		return r, nil
+	}
+	return entity.Record{}, nil
 }
 
 func (s *SqliteRecordService) DeleteRecord(ctx context.Context, resource string, id int64) (record entity.Record, err error) {

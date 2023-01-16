@@ -11,13 +11,16 @@ import (
 type Insured struct {
 	ID int `json:"id"`
 
-	// Insured's preferred name & email.
+	// Insured's preferred name
 	Name string `json:"name"`
 
 	PolicyNumber int `json:"policyNumber"`
 
 	// Timestamps for insured creation & last update.
 	RecordTimestamp time.Time `json:"recordTimestamp"`
+
+	Employees *map[int]Employee `json:"employees"`
+	Addresses *map[int]Address  `json:"insuredAddresses"`
 }
 
 // Validate returns an error if the insured contains invalid fields.
@@ -79,12 +82,13 @@ func (e *Insured) ToRecord() Record {
 			"id":               idString,
 			"name":             e.Name,
 			"policy_number":    strconv.Itoa(e.PolicyNumber),
-			"record_timestamp": strconv.Itoa(int(e.RecordTimestamp.Unix())),
+			"record_timestamp": strconv.Itoa(int(e.RecordTimestamp.Unix())),			
 		},
 	}
 	return r
 }
 
+// Fill in Insured fields from Record. Does not fill in Employees or Addresses.
 func (e *Insured) FromRecord(r Record) (err error) {
 	e.ID = r.ID
 	e.Name = r.Data["name"]
@@ -96,4 +100,18 @@ func (e *Insured) FromRecord(r Record) (err error) {
 	timestampInt, err := strconv.Atoi(r.Data["record_timestamp"])
 	e.RecordTimestamp = time.Unix(int64(timestampInt), 0)
 	return err
+}
+
+func InsuredsFromRecords(records map[int]Record) (map[int]Insured, error) {
+	insuredes := make(map[int]Insured)
+	for i, e := range records {
+		id := i
+		insured := Insured{}
+		err := insured.FromRecord(e)
+		if err != nil {
+			return map[int]Insured{}, err
+		}
+		insuredes[id] = insured
+	}
+	return insuredes, nil
 }

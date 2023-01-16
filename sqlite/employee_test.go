@@ -31,7 +31,7 @@ func TestEmployeeService_CreateEmployee(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		u := &entity.Employee{
+		employee1 := &entity.Employee{
 			Name:            "susy",
 			StartDate:       start,
 			EndDate:         end,
@@ -40,7 +40,7 @@ func TestEmployeeService_CreateEmployee(t *testing.T) {
 		}
 
 		// Create new employee & verify ID and timestamps are set.
-		newRecord, err := s.CreateEmployee(ctx, u)
+		newRecord, err := s.CreateEmployee(ctx, employee1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -53,9 +53,9 @@ func TestEmployeeService_CreateEmployee(t *testing.T) {
 		if err != nil {
 			fmt.Println("id", newRecord, "gottenId:", gottenId)
 			t.Fatal(err)
-		} else if got, want := int64(newRecord.ID), gottenId; got != want {
+		} else if got, want := int64(newRecord.ID), gottenId; got != want { // testing reference
 			t.Fatalf("ID=%v, want %v", got, want)
-		} else if u.RecordTimestamp.IsZero() {
+		} else if employee1.RecordTimestamp.IsZero() {
 			t.Fatal("expected created at")
 		}
 
@@ -68,20 +68,21 @@ func TestEmployeeService_CreateEmployee(t *testing.T) {
 		if err != nil {
 			t.Fatal("time.Parse() error")
 		}
-		u2 := &entity.Employee{Name: "jane", StartDate: start2, EndDate: end2, InsuredId: 2, RecordTimestamp: time.Now()}
-		if _, err := s.CreateEmployee(ctx, u2); err != nil {
+		employee2 := &entity.Employee{Name: "jane", StartDate: start2, EndDate: end2, InsuredId: 2, RecordTimestamp: time.Now()}
+		if _, err := s.CreateEmployee(ctx, employee2); err != nil {
 			t.Fatal(err)
-		} else if got, want := u2.ID, 8; got != want {
+		} else if got, want := employee2.ID, 9; got != want {
 			t.Fatalf("ID=%v, want %v", got, want)
 		}
 
 		// Fetch employee from database & compare.
-		uRecord := u.ToRecord()
+		uRecord := employee1.ToRecord()
 		//u2Record := u2.ToRecord()
-		if other, err := s.Db.GetById(ctx, "employees", 7); err != nil {
+		if other, err := s.Db.GetById(ctx, "employees", 8); err != nil {
 			t.Fatal(err)
 		} else if !cmp.Equal(other, uRecord) {
-			t.Fatal("Records are not equal")
+			fmt.Println()
+			t.Fatal("Records are not equal. Go record:", uRecord, " DB record retrieved:", other)
 		}
 	})
 

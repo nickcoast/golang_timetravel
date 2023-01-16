@@ -11,7 +11,7 @@ import (
 type Employee struct {
 	ID int `json:"id"`
 
-	// Employee's preferred name & email.
+	// Employee's preferred
 	Name string `json:"name"`
 
 	StartDate time.Time `json:"startDate"`
@@ -103,3 +103,19 @@ func (e *Employee) FromRecord(r Record) (err error) {
 	e.RecordTimestamp = time.Unix(int64(timestampInt), 0)
 	return err
 }
+
+func EmployeesFromRecords(records map[int]Record) (map[int]Employee, error) {
+	employeees := make(map[int]Employee)
+	for i, e := range records {
+		id := i
+		employee := Employee{}
+		err := employee.FromRecord(e)
+		if err != nil {
+			return map[int]Employee{}, err
+		}
+		employeees[id] = employee
+	}
+	return employeees, nil
+}
+
+//func EmployeesFromData(data map[string]string ) 
