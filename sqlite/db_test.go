@@ -147,7 +147,7 @@ func TestDB_GetResourceByDate(tb *testing.T) {
 		fmt.Println("employees", employees)
 
 		for _, t := range timestamps {
-			db.GetByDate(ctx, "employees", "name", int64(sue.ID), t.Add(time.Second*1))
+			db.GetByDate(ctx, "employees", "name", int64(sue.ID), t.Add(time.Second*1)) // make this so each call should get ONE record?
 		}
 
 		pastTimestampString := strconv.FormatInt(pastTimestamp.Unix(), 10)
