@@ -158,7 +158,7 @@ func (s *SqliteRecordService) GetRecordByDate(ctx context.Context, resource stri
 	}
 	fmt.Println("service.SqliteRecordService.GetRecordByDate: Data", e.Data, "requested id", e.ID)
 
-	return e, ErrRecordDoesNotExist
+	return e, nil
 }
 
 func (s *SqliteRecordService) DeleteRecord(ctx context.Context, resource string, id int64) (record entity.Record, err error) {

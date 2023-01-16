@@ -34,6 +34,7 @@ func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 		idNumber,
 		dateTime,
 	)
+	fmt.Println(record)
 	if err != nil {
 		err := writeError(w, fmt.Sprintf("No record for Insured %v and date %v exist", idNumber, date), http.StatusBadRequest)
 		logError(err)

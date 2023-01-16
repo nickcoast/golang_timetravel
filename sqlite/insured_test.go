@@ -207,7 +207,7 @@ func MustCreateEmployees(tb testing.TB, ctx context.Context, db *sqlite.DB, insu
 	insuredId := insured.ID
 
 	var employees = []*entity.Employee{
-		&entity.Employee{
+		{
 			Name:            employeeName,
 			StartDate:       startDateOrig,
 			EndDate:         endDateOrig,
