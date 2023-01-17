@@ -11,6 +11,7 @@ import (
 	"github.com/nickcoast/timetravel/service"
 )
 
+// API V1
 // POST /records/{id}
 // if the record exists, the record is updated.
 // if the record doesn't exist, the record is created.
@@ -43,7 +44,7 @@ func (a *API) PostRecords(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if !errors.Is(err, service.ErrRecordDoesNotExist) { // record exists
-		record, err = a.records.UpdateRecord(ctx, int(idNumber), body)
+		record, err = a.records.UpdateRecord(ctx, resource, record)
 	} else { // record does not exist
 
 		// exclude the delete updates
