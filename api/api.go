@@ -42,6 +42,7 @@ func (a *API) CreateV2Routes(routes *mux.Router) {
 	// TODO: force consumer to confirm before allowing permanent deletion.
 	i.Path("/{type}/delete/{id:[0-9]+}").HandlerFunc(a.Delete).Methods("DELETE")
 
+	// !!!TIME TRAVEL!!! - use getbydate and getbytimestamp to get records valid at a particular time
 	//i.Path("/{type}/confirmdelete/{id:[0-9]+}").HandlerFunc(a.Delete).Methods("DELETE")
 	i.Path("/{type}/getbydate/{insuredId}/{date}").HandlerFunc(a.GetResourceByDate).Methods("GET")
 	// same as above, but using integer timestamp for exact times

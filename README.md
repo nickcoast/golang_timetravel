@@ -1,3 +1,18 @@
+# TIME TRAVEL
+
+use getbydate and getbytimestamp to get records valid at a particular time
+
+API endpoints for getting records valid at {date}
+/{type}/getbydate/{insuredId}/{date}
+/{type}/getbytimestamp/{insuredId}/{date}
+
+Use "insured" for {type} to get complete data.
+
+Can also use "employee" or "address"
+
+See here for other endpoints
+./api/api.go
+
 # The Temelpa Take-Home Assignment
 
 Please create a __private__ version of this repo, complete the objectives, and once you
