@@ -4,7 +4,7 @@ CREATE TABLE "insured_addresses" (
 	"insured_id"	INTEGER NOT NULL,
 	"record_timestamp"	INTEGER NOT NULL,
 	CONSTRAINT "insured_addresses_insured_id_address_unq" UNIQUE("insured_id","address"),
-	FOREIGN KEY(insured_id) REFERENCES insured(id)
+	FOREIGN KEY(insured_id) REFERENCES insured(id) ON DELETE CASCADE ON UPDATE CASCADE
 	PRIMARY KEY("id" AUTOINCREMENT)
 );
 

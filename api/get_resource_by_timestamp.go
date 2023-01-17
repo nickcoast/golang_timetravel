@@ -10,9 +10,9 @@ import (
 )
 
 // API V2
-// GET /{type}/getbydate/{insuredId}/{date}
+// GET /{type}/getbytimestamp/{insuredId}/{date}
 // Get unique records for this resource valid at this date
-func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
+func (a *API) GetResourceByTimestamp(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	requestType := mux.Vars(r)["type"]
 
@@ -28,19 +28,20 @@ func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 	insuredId := mux.Vars(r)["insuredId"]
 	idNumber, err := strconv.ParseInt(insuredId, 10, 32)
 
-	fmt.Println("api.GetResourceByDate date:", date)
-	fmt.Println("api.GetResourceByDate resource:", resource)
-	dateTime, err := time.Parse("2006-01-02", date)
-
+	fmt.Println("api.GetResourceByTimestamp date:", date)
+	fmt.Println("api.GetResourceByTimestamp resource:", resource)
+	// check if timestamp
+	timestamp, err := strconv.ParseInt(date, 10, 64)
 	if err != nil {
-		err := writeError(w, fmt.Sprintf("Please submit date in format: 2006-01-02. Or submit timestamp"), http.StatusBadRequest)
+		err := writeError(w, fmt.Sprintf("Please submit date in timestamp (integer) format"), http.StatusBadRequest)
 		logError(err)
 		return
 	}
+	timestampDate := time.Unix(timestamp, 0)
 
 	if resource == "insured" {
-		insured, err := a.sqlite.GetInsuredByDate(ctx, idNumber, dateTime)
-		if err != nil {
+		insured, err := a.sqlite.GetInsuredByDate(ctx, idNumber, timestampDate)
+		if err != nil || insured.ID == 0 {
 			err := writeError(w, fmt.Sprintf("No record for Insured %v and date %v exist", idNumber, date), http.StatusBadRequest)
 			logError(err)
 			return
@@ -55,11 +56,11 @@ func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 		resource,
 		naturalKey,
 		idNumber,
-		dateTime,
+		timestampDate,
 	)
 	fmt.Println(record)
-	if err != nil {
-		err := writeError(w, fmt.Sprintf("No record for Insured %v and date %v exist", idNumber, date), http.StatusBadRequest)
+	if err != nil || record.ID == 0 {
+		err := writeError(w, fmt.Sprintf("No record for %v and date %v exist", resource, date), http.StatusBadRequest)
 		logError(err)
 		return
 	}

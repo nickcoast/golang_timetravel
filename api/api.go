@@ -35,13 +35,17 @@ func (a *API) CreateV2Routes(routes *mux.Router) {
 	i := routes
 	i.Path("/{type}/id/{id:[0-9]+}").HandlerFunc(a.GetResourceById).Methods("GET")
 	i.Path("/{type}/new").HandlerFunc(a.Create).Methods("POST")
-	i.Path("/{type}/update/{id:[0-9]+}").HandlerFunc(a.Update).Methods("PUT")
+	i.Path("/{type}/update").HandlerFunc(a.Update).Methods("PUT")
+
 	// Permanently deletes record (insured, employee, or insured address)
-	i.Path("/{type}/delete/{id:[0-9]+}").HandlerFunc(a.Delete).Methods("DELETE")
-	// TODO: force consumer to confirm before allowing permanent deletion.
 	// Should be allowed to supervisors in case of erroneous data or FBI investigations
+	// TODO: force consumer to confirm before allowing permanent deletion.
+	i.Path("/{type}/delete/{id:[0-9]+}").HandlerFunc(a.Delete).Methods("DELETE")
+
 	//i.Path("/{type}/confirmdelete/{id:[0-9]+}").HandlerFunc(a.Delete).Methods("DELETE")
 	i.Path("/{type}/getbydate/{insuredId}/{date}").HandlerFunc(a.GetResourceByDate).Methods("GET")
+	// same as above, but using integer timestamp for exact times
+	i.Path("/{type}/getbytimestamp/{insuredId}/{date}").HandlerFunc(a.GetResourceByTimestamp).Methods("GET")
 
 	ad := routes.PathPrefix("/address").Subrouter()
 	ad.Path("/id/{id:[0-9]+}").HandlerFunc(a.GetRecords).Methods("GET")

@@ -48,13 +48,8 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("api.CreateInsured requestRecord", requestRecord)
 	newRecord, err := a.sqlite.CreateRecord(ctx, resource, requestRecord)
 
-	if err != nil && err.Error() == "Record already exists. Use 'update' to update" {
-		errInWriting := writeError(w, err.Error(), http.StatusBadRequest)
-		logError(err)
-		logError(errInWriting)
-		return
-	} else if err != nil {
-		errInWriting := writeError(w, ErrInternal.Error(), http.StatusInternalServerError)
+	if err != nil {
+		errInWriting := writeError(w, err.Error(), http.StatusInternalServerError)
 		logError(err)
 		logError(errInWriting)
 		return

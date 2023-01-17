@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/nickcoast/timetravel/entity"
+	"github.com/nickcoast/timetravel/service"
 )
 
 // API V2
@@ -48,8 +49,13 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("api.UpdateInsured requestRecord:", requestRecord)
 	newRecord, err := a.sqlite.UpdateRecord(ctx, resource, requestRecord)
 
-	if err != nil && err.Error() == "Record does not exist. Use 'new' instead" {
+	if err != nil && err.Error() == service.ErrRecordDoesNotExist.Error() {
 		errInWriting := writeError(w, err.Error(), http.StatusBadRequest)
+		logError(err)
+		logError(errInWriting)
+		return
+	} else if err != nil {
+		errInWriting := writeError(w, "Duplicate record. Must change at least one value to update.", http.StatusBadRequest)
 		logError(err)
 		logError(errInWriting)
 		return
