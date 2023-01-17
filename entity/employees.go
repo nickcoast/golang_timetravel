@@ -2,6 +2,7 @@ package entity
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 )
@@ -77,6 +78,37 @@ type EmployeeUpdate struct {
 	EndDate   *time.Time `json:"endDate"`
 }
 
+// EndDate is optional
+func NewEmployee(name string, startDate string, endDate string, insuredId int, recordTimestamp string) (employee *Employee, err error) {
+	if len(name) == 0 {
+		return employee, fmt.Errorf("Name must be at least 1 character long")
+	}
+	start, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return employee, err
+	}
+	end, err := time.Parse("2006-01-02", endDate)
+	/* if err == nil {
+		employee.EndDate = end // leave empty on error
+	} */
+
+	fmt.Println("recordTimestamp:", recordTimestamp)
+	//timestamp, err := time.Parse("2006-01-02 15:04:05", recordTimestamp) // wrong timezone
+	timestamp, err := time.Parse("2006-01-02T15:04:05Z07:00", recordTimestamp)
+	fmt.Println("timestamp:", timestamp)
+	if err != nil {
+		return employee, err
+	}
+	employee = &Employee{
+		Name:            name,
+		StartDate:       start,
+		EndDate:         end,
+		InsuredId:       insuredId,
+		RecordTimestamp: timestamp,
+	}
+	return employee, nil
+}
+
 func (e *Employee) ToRecord() Record {
 	idString := strconv.Itoa(e.ID)
 	r := Record{
@@ -118,4 +150,3 @@ func EmployeesFromRecords(records map[int]Record) (map[int]Employee, error) {
 	return employeees, nil
 }
 
-//func EmployeesFromData(data map[string]string ) 

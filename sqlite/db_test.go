@@ -160,7 +160,10 @@ func TestDB_GetResourceByDate(tb *testing.T) {
 		}
 
 		fmt.Println("wantRecord", wantRecord)
-		/* if record, err := db.GetByDate(ctx, "employees", "name", int64(insuredID), now); err != nil {
+		// TODO
+		/*record, err := db.GetByDate(ctx, "employees", "name", int64(insuredID), now)
+		id := record
+		if err != nil {
 			tb.Fatal(err)
 		} else if got, want := record.ID, insuredID; got != want {
 			tb.Fatalf("ID=%v, want %v", got, want)

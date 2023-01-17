@@ -9,9 +9,12 @@ import (
 	"github.com/nickcoast/timetravel/entity"
 )
 
-var ErrRecordDoesNotExist = errors.New("record with that id does not exist")
-var ErrRecordIDInvalid = errors.New("record id must >= 0")
-var ErrRecordAlreadyExists = errors.New("record already exists")
+var ErrRecordDoesNotExist = errors.New("Record does not exist. Use 'new' to create.")
+var ErrRecordIDInvalid = errors.New("Record id must >= 0")
+var ErrRecordAlreadyExists = errors.New("Record already exists. Use 'update' to update")
+var ErrServerError = errors.New("The server experienced a problem")
+var ErrInvalidRequest = errors.New("A required value for this operation was not received")
+var ErrNonexistentParentRecord = errors.New("Cannot create record for non-existent insuredId")
 
 // Implements method to get, create, and update record data.
 type RecordService interface {

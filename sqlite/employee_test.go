@@ -3,6 +3,7 @@ package sqlite_test
 import (
 	"context"
 	"fmt"
+	"log"
 
 	//"reflect"
 	"testing"
@@ -16,7 +17,8 @@ import (
 
 // TODO: delete all employee at end of each test?
 
-func TestEmployeeService_CreateEmployee(t *testing.T) {
+// Test DB record creation
+func TestInsuredService_CreateEmployee(t *testing.T) {
 	// Ensure employee can be created.
 	t.Run("OK", func(t *testing.T) {
 		db := MustOpenDB(t)
@@ -163,7 +165,7 @@ func TestEmployeeService_CreateEmployee(t *testing.T) {
 	})
 }
 */
-func TestEmployeeService_FindEmployee(t *testing.T) {
+func TestInsuredService_FindEmployee(t *testing.T) {
 	// Ensure an error is returned if fetching a non-existent employee.
 	t.Run("ErrNotFound", func(t *testing.T) {
 		db := MustOpenDB(t)
@@ -176,7 +178,7 @@ func TestEmployeeService_FindEmployee(t *testing.T) {
 	})
 }
 
-func TestEmployeeService_FindEmployees(t *testing.T) {
+func TestInsuredService_FindEmployees(t *testing.T) {
 	// Ensure employees can be fetched by email address.
 	/* 	t.Run("PolicyNumber", func(t *testing.T) {
 		db := MustOpenDB(t)
@@ -200,6 +202,58 @@ func TestEmployeeService_FindEmployees(t *testing.T) {
 			t.Fatalf("n=%v, want %v", got, want)
 		}
 	}) */
+}
+
+func TestInsuredService_CountEmployees(t *testing.T) {
+	ctx := context.Background()
+	db := MustOpenDB(t)
+	defer MustCloseDB(t, db)
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("Failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	s := sqlite.NewInsuredService(db)
+
+	uTimestamp, _ := time.Parse("2006-01-02 15:04:05", "2023-01-13 12:15:00")
+	insured := &entity.Insured{
+		Name: "susy",
+		/* PolicyNumber:    1002, */ // will be 1002 no matter what is set here because of DB trigger to automatically increment
+		RecordTimestamp:             uTimestamp, //time.Now().UTC(),
+	}
+	MustCreateInsured(t, ctx, db, insured)
+
+	employee1, err := entity.NewEmployee("Billy", "2001-01-01", "2002-01-01", insured.ID, "2006-01-02 12:00:00")
+	if err != nil {
+		t.Fatalf("Failed to create employee. %v - Error: %v", employee1, err)
+	}
+	employee2, err := entity.NewEmployee("Billy", "2001-01-01", "2002-06-01", insured.ID, "2006-06-02 12:00:00")
+	if err != nil {
+		t.Fatalf("Failed to create employee. %v - Error: %v", employee2, err)
+	}
+
+	log.Println("TestInsuredService_CountEmployees employee1:", employee1)
+	log.Println("TestInsuredService_CountEmployees employee2:", employee2)
+
+	MustCreateEmployee(t, ctx, db, employee1)
+	MustCreateEmployee(t, ctx, db, employee2)
+
+	if count, err := s.CountEmployeeRecords(ctx, *employee1); err != nil {
+		t.Fatal(err)
+	} else if got, want := count, 2; got != want { // should get count of 2 because two records for this employee
+		t.Fatalf("Count from DB COUNT(*)=%v, want %v", got, want)
+	}
+
+	t.Run("Fail if exists", func(t *testing.T) {
+
+		// exact duplicate
+		employee3, err := entity.NewEmployee("Billy", "2001-01-01", "2002-01-01", insured.ID, "2006-01-02 12:00:00")
+		MustCreateEmployee(t, ctx, db, employee3)
+		if err != nil {
+			t.Fatalf("Failed to create employee. %v - Error: %v", employee1, err)
+		}
+	})
 }
 
 // MustCreateEmployee creates a employee in the database. Fatal on error.

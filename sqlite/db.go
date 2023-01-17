@@ -247,9 +247,9 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 	insuredRecord, err := db.GetById(ctx, "insured", insuredId)
 	if err != nil {
 		return entity.Insured{}, FormatError(err)
-	}
-
+	}	
 	employees, err := entity.EmployeesFromRecords(employeeRecords)
+	
 	addresses, err := entity.AddressesFromRecords(addressRecords)
 	insured.FromRecord(insuredRecord)
 	insured.Employees = &employees
@@ -378,7 +378,9 @@ func (db *DB) DeleteById(ctx context.Context, tableName string, id int64) (delet
 		return deletedRecord, entity.Errorf("Failed to get record before deletion. Aborting delete. Error: %v", err.Error())
 	}
 
-	_, err = tx.ExecContext(ctx, `DELETE FROM `+tableName+` WHERE id = ?`, id)
+	query := `DELETE FROM ` + tableName + ` WHERE id = ?`
+	fmt.Println(query)
+	_, err = tx.ExecContext(ctx, query, id)
 	if err != nil {
 		fmt.Println("Failed to DELETE record", err)
 		return deletedRecord, fmt.Errorf("Failed to DELETE record. Error: %v", err.Error())

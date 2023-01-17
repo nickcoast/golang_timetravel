@@ -5,6 +5,7 @@ package sqlite
 import (
 	"context"
 	"fmt"
+	"log"
 
 	/* "database/sql" */
 	"strings"
@@ -88,6 +89,7 @@ func (s *InsuredService) CreateAddress(ctx context.Context, address *entity.Addr
 	return record, tx.Commit()
 }
 
+// Create new employee *record*. Used for creating new employee, and for updating
 func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Employee) (record entity.Record, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
@@ -113,9 +115,9 @@ func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Em
 
 }
 
-// Checking for existence of natural key of insured_id-name in employees table
-// If exists, then user must submit UPDATE rather than CREATE
-func (s *InsuredService) ExistsEmployee(ctx context.Context, employee entity.Employee) (int, error) {
+// Check exists employee (regardless of time-travelable attributes)
+// if exists, then API consumer should be submitting "UPDATE"
+func (s *InsuredService) CountEmployeeRecords(ctx context.Context, employee entity.Employee) (count int, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -124,19 +126,20 @@ func (s *InsuredService) ExistsEmployee(ctx context.Context, employee entity.Emp
 	if err := employee.Validate(); err != nil {
 		return 0, err
 	}
-	result, err := tx.QueryContext(ctx, `
-		SELECT COUNT(*) FROM employees
-		WHERE name = ?
-		AND insured_id = ?		
-	`,
+	query := `
+	SELECT COUNT(*) FROM employees
+	WHERE name = ?
+	AND insured_id = ?		
+`
+	result, err := tx.QueryContext(ctx, query,
 		employee.Name,
 		employee.InsuredId,
 	)
+	
 	if err != nil {
 		return 0, err
 	}
 	defer result.Close()
-	var count int
 	for result.Next() {
 		if err := result.Scan(&count); err != nil {
 			return 0, err
@@ -145,38 +148,32 @@ func (s *InsuredService) ExistsEmployee(ctx context.Context, employee entity.Emp
 	return count, nil
 }
 
-// UpdateInsured updates a insured object. Returns ENOTFOUND if insured does not exist.
-/* func (s *InsuredService) UpdateInsured(ctx context.Context, id int, upd entity.InsuredUpdate) (*entity.Insured, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	// Update insured
-	insured, err := updateInsured(ctx, tx, id, upd)
-	if err != nil {
-		return insured, err
-	} else if err := tx.Commit(); err != nil {
-		return insured, err
-	}
-	return insured, nil
-} */
-
-// DeleteInsured permanently deletes a insured and all owned dials.
-// Returns ENOTFOUND if insured does not exist.
-/* func (s *InsuredService) DeleteInsured(ctx context.Context, id int) error {
+func (s *InsuredService) CountInsuredAddresses(ctx context.Context, insured entity.Insured) (count int, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return count, err
 	}
 	defer tx.Rollback()
-
-	if err := deleteInsured(ctx, tx, id); err != nil {
-		return err
+	if err := insured.Validate(); err != nil {
+		return count, err
 	}
-	return tx.Commit()
-} */
+	query := `
+	SELECT COUNT(*) FROM insured_addresses
+	WHERE insured_id = ?
+`
+	result, err := tx.QueryContext(ctx, query, insured.ID)
+	log.Println("GetAddressesForInsured", insured, "Query: ", query)
+	if err != nil {
+		return count, err
+	}
+	defer result.Close()
+	for result.Next() {
+		if err := result.Scan(&count); err != nil {
+			return count, err
+		}
+	}
+	return count, nil
+}
 
 // NOT USED BY API. Bypassing Service for generalized DB methods for Delete, Get
 func (s *InsuredService) DeleteEmployee(ctx context.Context, id int) (record entity.Record, err error) {
@@ -360,60 +357,11 @@ func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (rec
 	return record, nil
 }
 
-// updateInsured updates fields on a insured object.
-/* func updateInsured(ctx context.Context, tx *Tx, id int, upd entity.InsuredUpdate) (*entity.Insured, error) {
-	// Fetch current object state.
-	insured, err := findInsuredByID(ctx, tx, id)
-	if err != nil {
-		return insured, err
-	}
-
-	// Update fields.
-	if v := upd.Name; v != nil {
-		insured.Name = *v
-	}
-	if v := upd.Email; v != nil {
-		insured.Email = *v
-	}
-
-	// Set last updated date to current time.
-	insured.UpdatedAt = tx.now
-
-	// Perform basic field validation.
-	if err := insured.Validate(); err != nil {
-		return insured, err
-	}
-
-	// Email is nullable and has a UNIQUE constraint so ensure we store blank
-	// fields as NULLs.
-	var email *string
-	if insured.Email != "" {
-		email = &insured.Email
-	}
-
-	// Execute update query.
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE insureds
-		SET name = ?,
-		    email = ?,
-		    updated_at = ?
-		WHERE id = ?
-	`,
-		insured.Name,
-		email,
-		(*NullTime)(&insured.UpdatedAt),
-		id,
-	); err != nil {
-		return insured, FormatError(err)
-	}
-
-	return insured, nil
-} */
-
 // private helper to help insert policy numbers in order
 func getMaxPolicyNumber(ctx context.Context, tx *Tx) (max int, err error) {
+	// coalesce ensures '1000' is returned if no data exists in table
 	tx.QueryRowContext(ctx, `
-		SELECT MAX(policy_number) AS max_policy_number 		
+		SELECT coalesce(MAX(policy_number), 1000) AS max_policy_number 		
 		FROM insured		
 		ORDER BY id ASC`,
 	).Scan(&max)
@@ -432,7 +380,7 @@ func (s *InsuredService) UpdateEmployee(ctx context.Context, employee *entity.Em
 	}
 	defer tx.Rollback()
 
-	count, err := s.ExistsEmployee(ctx, *employee)
+	count, err := s.CountEmployeeRecords(ctx, *employee)
 	if err != nil {
 		return entity.Record{}, err
 	}
