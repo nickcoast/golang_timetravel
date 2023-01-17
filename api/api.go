@@ -67,7 +67,6 @@ func (a *API) updateOrCreate(w http.ResponseWriter, r *http.Request, uOrC update
 		return
 	}
 
-	//fmt.Println("CreateRecord")
 	ctx := r.Context()
 
 	var body map[string]*string
@@ -88,7 +87,6 @@ func (a *API) updateOrCreate(w http.ResponseWriter, r *http.Request, uOrC update
 	var requestRecord entity.Record
 	requestRecord.Data = recordMap
 
-	//fmt.Println("api.updateOrCreate requestRecord", requestRecord)
 	// TODO: any way to DRY this?
 	if uOrC == update {
 		record, err := a.sqlite.UpdateRecord(ctx, resource, requestRecord)

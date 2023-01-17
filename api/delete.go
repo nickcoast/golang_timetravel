@@ -19,8 +19,7 @@ func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 	requestType := mux.Vars(r)["type"]
 	fmt.Println("DELETE")
 	ctx := r.Context()
-	id := mux.Vars(r)["id"]
-	//name := mux.Vars(r)["name"]
+	id := mux.Vars(r)["id"]	
 	idNumber, err := strconv.ParseInt(id, 10, 32)
 
 	resource, err := resourceNameFromSynonym(requestType)
@@ -42,7 +41,7 @@ func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Yikes")
 		return
 	}
-
+	
 	/* this API response can give the user a chance to "undo" by sumbitting this data as a new record */
 	deletedRecord, err := a.sqlite.DeleteRecord(ctx, resource, idNumber)
 	if err != nil {
