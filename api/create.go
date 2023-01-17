@@ -56,6 +56,6 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Println("newRecord", newRecord)
-	err = writeJSON(w, newRecord, http.StatusOK) //TODO: actually return new record
+	err = writeJSON(w, newRecord, http.StatusOK)
 	logError(err)
 }
