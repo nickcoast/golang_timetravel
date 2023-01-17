@@ -28,7 +28,7 @@ type RecordService interface {
 	// if the update[key] is null it will delete that key from the record's Map.
 	//
 	// UpdateRecord will error if id <= 0 or the record does not exist with that id.
-	UpdateRecord(ctx context.Context, id int, updates map[string]*string) (entity.Record, error)
+	UpdateRecord(ctx context.Context, resource string, record entity.Record) (entity.Record, error)
 
 	DeleteRecord(ctx context.Context, resource string, id int64) (entity.Record, error)
 
@@ -90,20 +90,20 @@ func (s *InMemoryRecordService) CreateRecord(ctx context.Context, resource strin
 	return newRecord, nil
 }
 
-func (s *InMemoryRecordService) UpdateRecord(ctx context.Context, id int, updates map[string]*string) (entity.Record, error) {
+func (s *InMemoryRecordService) UpdateRecord(ctx context.Context, resource string, record entity.Record) (entity.Record, error) {
+	id := record.ID
 	entry := s.data[id]
 	if entry.ID == 0 {
 		return entity.Record{}, ErrRecordDoesNotExist
 	}
 
-	for key, value := range updates {
-		if value == nil { // deletion update
+	for key, value := range record.Data {
+		if value == "" { // deletion update
 			delete(entry.Data, key)
 		} else {
-			entry.Data[key] = *value
+			entry.Data[key] = value
 		}
 	}
-
 	return entry.Copy(), nil
 }
 

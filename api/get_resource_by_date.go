@@ -9,11 +9,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// GET /insured/id/{id}
-// Get this unique records for this resources valid at this date
+// API V2
+// GET /{type}/getbydate/{insuredId}/{date}
+// Get unique records for this resource valid at this date
 func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	resource := mux.Vars(r)["type"]
+	ctx := r.Context()	
+	requestType := mux.Vars(r)["type"]
+
+	resource, err := resourceNameFromSynonym(requestType)
+	if err != nil {
+		err := writeError(w, err.Error(), http.StatusBadRequest)
+		logError(err)
+		return
+	}
+
 	date := mux.Vars(r)["date"]
 	naturalKey := "date" // might rename this to groupingKey.
 	insuredId := mux.Vars(r)["insuredId"]
@@ -25,6 +34,7 @@ func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		err := writeError(w, fmt.Sprintf("Please submit date in format: 2006-01-02"), http.StatusBadRequest)
 		logError(err)
+		return
 	}
 	//record, err := a.sqlite.
 

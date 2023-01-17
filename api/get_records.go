@@ -8,7 +8,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// GET /records/{id}
+// API V1
+// GET /records/{id:[0-9]+}
 // GetRecord retrieves the record.
 func (a *API) GetRecords(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -23,7 +24,6 @@ func (a *API) GetRecords(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	
 	record, err := a.records.GetRecordById(
 		ctx,
 		resource,

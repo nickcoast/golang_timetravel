@@ -14,8 +14,8 @@ import (
 // if the record exists, the record is updated.
 // "insured" name and policy number cannot be updated.
 // "employees" and "insuredAddress" can be updated.
-// if the record doesn't exist, the record is created.
-func (a *API) Create(w http.ResponseWriter, r *http.Request) {
+// if the record doesn't exist, the record is updated.
+func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 	requestType := mux.Vars(r)["type"]
 	resource, err := resourceNameFromSynonym(requestType)
 	if err != nil {
@@ -24,7 +24,7 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("CreateRecord")
+	fmt.Println("UpdateRecord")
 	ctx := r.Context()
 
 	var body map[string]*string
@@ -45,10 +45,10 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 	var requestRecord entity.Record
 	requestRecord.Data = recordMap
 
-	fmt.Println("api.CreateInsured requestRecord", requestRecord)
-	newRecord, err := a.sqlite.CreateRecord(ctx, resource, requestRecord)
+	fmt.Println("api.UpdateInsured requestRecord:", requestRecord)
+	newRecord, err := a.sqlite.UpdateRecord(ctx, resource, requestRecord)
 
-	if err != nil && err.Error() == "Record already exists. Use 'update' to update" {
+	if err != nil && err.Error() == "Record does not exist. Use 'new' instead" {
 		errInWriting := writeError(w, err.Error(), http.StatusBadRequest)
 		logError(err)
 		logError(errInWriting)

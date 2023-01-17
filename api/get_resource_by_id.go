@@ -8,11 +8,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// GET /insured/id/{id}
+// API V2
+// GET /{type}/id/{id:[0-9]+}
 // GetInsureds retrieves the record.
 func (a *API) GetResourceById(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	resource := mux.Vars(r)["type"]	
+	requestType := mux.Vars(r)["type"]
+
+	resource, err := resourceNameFromSynonym(requestType)
+	if err != nil {
+		err := writeError(w, err.Error(), http.StatusBadRequest)
+		logError(err)
+		return
+	}
+
 	id := mux.Vars(r)["id"]
 	fmt.Println("api.GetInsuredsById id:", id)
 	fmt.Println("api.GetInsuredsById resource:", resource)
@@ -22,7 +31,6 @@ func (a *API) GetResourceById(w http.ResponseWriter, r *http.Request) {
 		logError(err)
 		return
 	}
-
 
 	record, err := a.sqlite.GetRecordById(
 		ctx,

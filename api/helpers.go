@@ -35,3 +35,22 @@ func writeError(w http.ResponseWriter, message string, statusCode int) error {
 		statusCode,
 	)
 }
+
+// handle erroneous api paths
+func resourceNameFromSynonym(resourceSynonym string) (resourceName string, err error ) {
+	// TODO: send response with correct API path
+	synonyms := map[string]string{
+		"addresses": "insured_addresses",
+		"address":	"insured_addresses",
+		"insured_addresses": "insured_addresses",
+		"employee": "employees",
+		"employees": "employees",
+		"insureds": "insured",
+		"insured": "insured",
+	}
+	resourceName, ok := synonyms[resourceSynonym]
+	if !ok {
+		return "", errors.New("No endpoint for"+resourceSynonym+". Please use 'insured', 'addresses', or 'employees'")
+	}
+	return resourceName, nil
+}
