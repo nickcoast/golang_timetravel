@@ -21,11 +21,11 @@ func (d *Record) Copy() Record {
 	}
 }
 
-func (d *Record) DataVal(key string) (val *string) {
+func (d *Record) DataVal(key string) (val string) {
 	if v, exists := d.Data[key]; exists {
-		return &v
+		return v
 	}
-	return nil
+	return ""
 }
 func (d *Record) SetID(id int) {
 	fmt.Println("Record.SetID", id)

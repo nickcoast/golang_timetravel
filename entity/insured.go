@@ -2,6 +2,8 @@ package entity
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 )
@@ -9,18 +11,12 @@ import (
 // Insured represents a insured in the system.
 // insureds can also be created directly for testing.
 type Insured struct {
-	ID int `json:"id"`
-
-	// Insured's preferred name
-	Name string `json:"name"`
-
-	PolicyNumber int `json:"policyNumber"`
-
-	// Timestamps for insured creation & last update.
-	RecordTimestamp time.Time `json:"recordTimestamp"`
-
-	Employees *map[int]Employee `json:"employees"`
-	Addresses *map[int]Address  `json:"insuredAddresses"`
+	ID              int
+	Name            string
+	PolicyNumber    int
+	RecordTimestamp time.Time // insured CREATION time
+	Employees       *map[int]Employee
+	Addresses       *map[int]Address
 }
 
 // Validate returns an error if the insured contains invalid fields.
@@ -82,7 +78,7 @@ func (e *Insured) ToRecord() Record {
 			"id":               idString,
 			"name":             e.Name,
 			"policy_number":    strconv.Itoa(e.PolicyNumber),
-			"record_timestamp": strconv.Itoa(int(e.RecordTimestamp.Unix())),			
+			"record_timestamp": strconv.Itoa(int(e.RecordTimestamp.Unix())),
 		},
 	}
 	return r
@@ -114,4 +110,25 @@ func InsuredsFromRecords(records map[int]Record) (map[int]Insured, error) {
 		insuredes[id] = insured
 	}
 	return insuredes, nil
+}
+
+func (i Insured) MarshalJSON() ([]byte, error) {
+	fmt.Println("MARSHHHHHHHHHHHHHHHHHHH")
+	return json.Marshal(&struct {
+		ID              string           `json:"id"`
+		Name            string           `json:"name"`
+		PolicyNumber    string           `json:"policy_number"`
+		RecordTimestamp string           `json:"recordTimestamp"`
+		RecordDateTime  string           `json:"recordDateTime"`
+		Employees       map[int]Employee `json:"employees"`
+		Addresses       map[int]Address  `json:"insuredAddresses"`
+	}{
+		ID:              strconv.Itoa(i.ID),
+		Name:            i.Name,
+		PolicyNumber:    strconv.Itoa(i.PolicyNumber),
+		RecordTimestamp: strconv.Itoa(int(i.RecordTimestamp.Unix())),
+		RecordDateTime:  i.RecordTimestamp.Format("Mon, 02 Jan 2006 15:04:05 MST"),
+		Employees:       *i.Employees,
+		Addresses:       *i.Addresses,
+	})
 }

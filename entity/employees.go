@@ -2,6 +2,7 @@ package entity
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -99,6 +100,7 @@ func NewEmployee(name string, startDate string, endDate string, insuredId int, r
 	if err != nil {
 		return employee, err
 	}
+	fmt.Println("STUFFFFFFFFFFFFFFF", name, start, end, insuredId, timestamp)
 	employee = &Employee{
 		Name:            name,
 		StartDate:       start,
@@ -106,6 +108,8 @@ func NewEmployee(name string, startDate string, endDate string, insuredId int, r
 		InsuredId:       insuredId,
 		RecordTimestamp: timestamp,
 	}
+	fmt.Println("EMPLOYEEEEEEEEEEEEEEEEe:", employee)
+
 	return employee, nil
 }
 
@@ -129,7 +133,7 @@ func (e *Employee) FromRecord(r Record) (err error) {
 	e.ID = r.ID
 	e.Name = r.Data["name"]
 	e.StartDate, err = time.Parse("2006-01-02", r.Data["start_date"])
-	//e.EndDate, _ = time.Parse
+	e.EndDate, _ = time.Parse("2006-01-02", r.Data["end_date"])
 	e.InsuredId, err = strconv.Atoi(r.Data["insured_id"])
 	timestampInt, err := strconv.Atoi(r.Data["record_timestamp"])
 	e.RecordTimestamp = time.Unix(int64(timestampInt), 0)
@@ -150,3 +154,27 @@ func EmployeesFromRecords(records map[int]Record) (map[int]Employee, error) {
 	return employeees, nil
 }
 
+func (e Employee) MarshalJSON() ([]byte, error) {
+	fmt.Println("MARSHHHHHHHHHHHHHHHHHHH")
+	endDate := e.EndDate.Format("2006-01-02")
+	if endDate == "0001-01-01" {
+		endDate = ""
+	}
+	return json.Marshal(&struct {
+		ID              string `json:"id"`
+		Name            string `json:"name"`
+		StartDate       string `json:"startDate"`
+		EndDate         string `json:"endDate"`
+		InsuredId       string `json:"insuredId"`
+		RecordTimestamp string `json:"recordTimestamp"`
+		RecordDateTime  string `json:"recordDateTime"`
+	}{
+		ID:              strconv.Itoa(e.ID),
+		Name:            e.Name,
+		StartDate:       e.StartDate.Format("2006-01-02"),
+		EndDate:         endDate,
+		InsuredId:       strconv.Itoa(e.InsuredId),
+		RecordTimestamp: strconv.Itoa(int(e.RecordTimestamp.Unix())),
+		RecordDateTime:  e.RecordTimestamp.Format("Mon, 02 Jan 2006 15:04:05 MST"),
+	})
+}

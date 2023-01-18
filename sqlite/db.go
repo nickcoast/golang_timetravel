@@ -247,10 +247,10 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 	insuredRecord, err := db.GetById(ctx, "insured", insuredId)
 	if err != nil {
 		return entity.Insured{}, FormatError(err)
-	}	
+	}
 	employees, err := entity.EmployeesFromRecords(employeeRecords)
-	
 	addresses, err := entity.AddressesFromRecords(addressRecords)
+	fmt.Println("Employees:", employees, "Addresses:", addresses)
 	insured.FromRecord(insuredRecord)
 	insured.Employees = &employees
 	insured.Addresses = &addresses
@@ -291,7 +291,7 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 		`JOIN ` + tableName + ` t2 ON t1.id = t2.insured_id` + "\n" +
 		`WHERE t2.record_timestamp <= ` + strconv.Itoa(int(timestamp)) + "\n" +
 		`AND t1.id = ?` + "\n" +
-		`GROUP BY insured_id, ` + groupBy	
+		`GROUP BY insured_id, ` + groupBy
 	rows, err := tx.QueryContext(ctx, query, id)
 	if err != nil {
 		fmt.Println("bad query")

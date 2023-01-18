@@ -19,6 +19,7 @@ func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Em
 	}
 	defer tx.Rollback()
 
+	fmt.Println("InsuredService.CreateEmployee employee:", employee)
 	// Create a new employee record
 	record, err = createEmployee(ctx, tx, employee)
 	fmt.Println("InsuredService.CreateEmployee record:", record)
