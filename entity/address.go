@@ -2,6 +2,8 @@ package entity
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 )
@@ -105,4 +107,19 @@ func AddressesFromRecords(records map[int]Record) (map[int]Address, error) {
 		addresses[id] = address
 	}
 	return addresses, nil
+}
+
+func (a Address) MarshalJSON() ([]byte, error) {
+	fmt.Println("MAAAAAAAAAADDDDDDDDDDDHHHHHHHHHHHHHHHH")
+	return json.Marshal(&struct {
+		ID              string `json:"id"`
+		Address         string `json:"address"`
+		RecordTimestamp string `json:"recordTimestamp"`
+		RecordDateTime  string `json:"recordDateTime"`
+	}{
+		ID:              strconv.Itoa(a.ID),
+		Address:         a.Address,
+		RecordTimestamp: strconv.Itoa(int(a.RecordTimestamp.Unix())),
+		RecordDateTime:  a.RecordTimestamp.Format("Mon, 02 Jan 2006 15:04:05 MST"),
+	})
 }

@@ -11,17 +11,17 @@ import (
 
 func (s *SqliteRecordService) createAddress(ctx context.Context, timestamp time.Time, record entity.Record) (newRecord entity.Record, err error) {
 	addressString := record.DataVal("address")
-	if addressString == nil {
+	if addressString == "" {
 		return entity.Record{}, ErrServerError
 	}
 	fmt.Println("SqliteRecordService.CreateRecord name:", addressString)
 	var address *entity.Address
 	address = &entity.Address{}
-	address.Address = *addressString
+	address.Address = addressString
 	address.RecordTimestamp = timestamp
 
-	if ii := record.DataVal("insuredId"); ii != nil { // SET INSURED ID
-		if address.InsuredId, err = strconv.Atoi(*ii); err != nil {
+	if ii := record.DataVal("insuredId"); ii != "" { // SET INSURED ID
+		if address.InsuredId, err = strconv.Atoi(ii); err != nil {
 			fmt.Println("Error converting to int:", err)
 			return newRecord, fmt.Errorf("Problem converting string to int")
 		}
@@ -55,11 +55,11 @@ func (s *SqliteRecordService) updateAddress(ctx context.Context, timestamp time.
 
 	var address *entity.Address
 	address = &entity.Address{}
-	address.Address = *record.DataVal("address")
+	address.Address = record.DataVal("address")
 	address.RecordTimestamp = timestamp
 
-	if ii := record.DataVal("insuredId"); *ii != "" {
-		if address.InsuredId, err = strconv.Atoi(*ii); err != nil { // SET INSURED ID
+	if ii := record.DataVal("insuredId"); ii != "" {
+		if address.InsuredId, err = strconv.Atoi(ii); err != nil { // SET INSURED ID
 			fmt.Println("Error converting to int:", err)
 			return newRecord, ErrServerError
 		}

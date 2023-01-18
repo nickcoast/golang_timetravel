@@ -81,7 +81,12 @@ func (s *SqliteRecordService) GetRecordById(ctx context.Context, resource string
 	if err != nil || e.ID == 0 {
 		return entity.Record{}, ErrRecordDoesNotExist
 	}
-	//fmt.Println("service.SqliteRecordService.GetRecordById: Name", e.Name, "id", e.ID, "pn", e.PolicyNumber, "rt", e.RecordTimestamp)
+	ed := e.DataVal("end_date") // check "empty" end date
+	if ed != "" && ed == "0001-01-01" {
+		if ed == "0001-01-01" {
+			e.Data["end_date"] = "None"
+		}
+	}
 	fmt.Println("service.SqliteRecordService.GetById: Data", e.Data, "requested id", e.ID)
 
 	return e, nil
@@ -110,7 +115,7 @@ func (s *SqliteRecordService) createInsured(ctx context.Context, timestamp time.
 	fmt.Println("SqliteRecordService.CreateRecord name:", name)
 	var insured *entity.Insured
 	insured = &entity.Insured{}
-	insured.Name = *name
+	insured.Name = name
 	insured.RecordTimestamp = timestamp
 
 	newRecord, err = s.service.CreateInsured(ctx, insured)
@@ -128,17 +133,17 @@ func (s *SqliteRecordService) GetInsuredByDate(ctx context.Context, insuredId in
 // TODO: use map for natural key, or struct
 func (s *SqliteRecordService) GetRecordByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, dateValid time.Time) (entity.Record, error) {
 	if insuredId == 0 {
-		return entity.Record{}, ErrRecordDoesNotExist
+		return entity.Record{}, ErrNonexistentParentRecord
 	}
 	if resource == "employee" {
 		resource = "employees"
 	}
-	e, err := s.service.Db.GetByDate(ctx, resource, naturalKey, insuredId, dateValid)
+	record, err := s.service.Db.GetByDate(ctx, resource, naturalKey, insuredId, dateValid)
 	if err != nil {
-		return entity.Record{}, ErrRecordDoesNotExist
+		return entity.Record{}, ErrServerError
 	}
-	fmt.Println("service.SqliteRecordService.GetRecordByDate: records", e)
-	for _, r := range e {
+	fmt.Println("service.SqliteRecordService.GetRecordByDate: records", record)
+	for _, r := range record {
 		return r, nil
 	}
 	return entity.Record{}, nil
