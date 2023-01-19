@@ -12,22 +12,45 @@ import (
 	"github.com/nickcoast/timetravel/entity"
 )
 
-// Ensure service implements interface.
-var _ entity.InsuredService = (*InsuredService)(nil)
+// InsuredServices represents a service for managing insureds.
+type InsuredServices interface {
+	// Retrieves a insured by ID
+	// Returns ENOTFOUND if insured does not exist.
+	FindInsuredByID(ctx context.Context, id int) (*entity.Insured, error)
 
-// InsuredService represents a service for managing insureds.
-type InsuredService struct {
+	// Retrieves a list of insureds by filter. Also returns total count of matching
+	// insureds which may differ from returned results if filter.Limit is specified.
+	FindInsureds(ctx context.Context, filter entity.InsuredFilter) ([]*entity.Insured, int, error)
+
+	// Creates a new insured.
+	CreateInsured(ctx context.Context, insured *entity.Insured) (entity.Record, error)
+
+	// Updates a insured object. Returns ENOTFOUND if insured does not exist.
+	// REMOVED from interface. Will not support updates to the core table for now
+	/* UpdateInsured(ctx context.Context, id int, upd InsuredUpdate) (*Insured, error) */
+
+	// Permanently deletes a insured and all owned dials. Returns ENOTFOUND if
+	// insured does not exist.
+	// removed in favor of DB method
+	//DeleteInsured(ctx context.Context, id int) error
+}
+
+// Ensure service implements interface.
+var _ InsuredServices = (*InsuredDBService)(nil)
+
+// InsuredDBService represents a service for managing insureds.
+type InsuredDBService struct {
 	Db *DB
 }
 
 // NewInsuredService returns a new instance of InsuredService.
-func NewInsuredService(db *DB) *InsuredService {
-	return &InsuredService{Db: db}
+func NewInsuredService(db *DB) *InsuredDBService {
+	return &InsuredDBService{Db: db}
 }
 
 // FindInsuredByID retrieves a insured by ID
 // Returns ENOTFOUND if insured does not exist.
-func (s *InsuredService) FindInsuredByID(ctx context.Context, id int) (insured *entity.Insured, err error) {
+func (s *InsuredDBService) FindInsuredByID(ctx context.Context, id int) (insured *entity.Insured, err error) {
 	fmt.Println("sqlite.InsuredService.FindInsuredById")
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
@@ -47,7 +70,7 @@ func (s *InsuredService) FindInsuredByID(ctx context.Context, id int) (insured *
 
 // FindInsureds retrieves a list of insureds by filter. Also returns total count of
 // matching insureds which may differ from returned results if filter.Limit is specified.
-func (s *InsuredService) FindInsureds(ctx context.Context, filter entity.InsuredFilter) ([]*entity.Insured, int, error) {
+func (s *InsuredDBService) FindInsureds(ctx context.Context, filter entity.InsuredFilter) ([]*entity.Insured, int, error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, 0, err
@@ -58,7 +81,7 @@ func (s *InsuredService) FindInsureds(ctx context.Context, filter entity.Insured
 
 // CreateInsured creates a new insured.
 // Used by CreateRecord inside conditional
-func (s *InsuredService) CreateInsured(ctx context.Context, insured *entity.Insured) (record entity.Record, err error) {
+func (s *InsuredDBService) CreateInsured(ctx context.Context, insured *entity.Insured) (record entity.Record, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return record, err
@@ -72,8 +95,6 @@ func (s *InsuredService) CreateInsured(ctx context.Context, insured *entity.Insu
 	}
 	return record, tx.Commit()
 }
-
-
 
 // findInsureds returns a list of insureds matching a filter. Also returns a count of
 // total matching insureds which may differ if filter.Limit is set.
@@ -199,4 +220,3 @@ func getMaxPolicyNumber(ctx context.Context, tx *Tx) (max int, err error) {
 	return max, nil
 
 }
-

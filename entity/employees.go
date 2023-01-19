@@ -100,7 +100,6 @@ func NewEmployee(name string, startDate string, endDate string, insuredId int, r
 	if err != nil {
 		return employee, err
 	}
-	fmt.Println("STUFFFFFFFFFFFFFFF", name, start, end, insuredId, timestamp)
 	employee = &Employee{
 		Name:            name,
 		StartDate:       start,
@@ -108,8 +107,6 @@ func NewEmployee(name string, startDate string, endDate string, insuredId int, r
 		InsuredId:       insuredId,
 		RecordTimestamp: timestamp,
 	}
-	fmt.Println("EMPLOYEEEEEEEEEEEEEEEEe:", employee)
-
 	return employee, nil
 }
 
@@ -155,7 +152,6 @@ func EmployeesFromRecords(records map[int]Record) (map[int]Employee, error) {
 }
 
 func (e Employee) MarshalJSON() ([]byte, error) {
-	fmt.Println("MARSHHHHHHHHHHHHHHHHHHH")
 	endDate := e.EndDate.Format("2006-01-02")
 	if endDate == "0001-01-01" {
 		endDate = ""

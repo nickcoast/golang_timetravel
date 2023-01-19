@@ -12,7 +12,7 @@ import (
 )
 
 // Create new employee *record*. Used for creating new employee, and for updating
-func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Employee) (record entity.Record, err error) {
+func (s *InsuredDBService) CreateEmployee(ctx context.Context, employee *entity.Employee) (record entity.Record, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return record, err
@@ -71,7 +71,7 @@ func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (rec
 	return record, nil
 }
 
-func (s *InsuredService) UpdateEmployee(ctx context.Context, employee *entity.Employee) (record entity.Record, err error) {
+func (s *InsuredDBService) UpdateEmployee(ctx context.Context, employee *entity.Employee) (record entity.Record, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return record, err
@@ -138,7 +138,7 @@ func updateEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (rec
 
 // Check exists employee (regardless of time-travelable attributes)
 // if exists, then API consumer should be submitting "UPDATE"
-func (s *InsuredService) CountEmployeeRecords(ctx context.Context, employee entity.Employee) (count int, err error) {
+func (s *InsuredDBService) CountEmployeeRecords(ctx context.Context, employee entity.Employee) (count int, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -170,6 +170,6 @@ func (s *InsuredService) CountEmployeeRecords(ctx context.Context, employee enti
 }
 
 // NOT USED BY API. Bypassing Service for generalized DB methods for Delete and Get
-func (s *InsuredService) DeleteEmployee(ctx context.Context, id int) (record entity.Record, err error) {
+func (s *InsuredDBService) DeleteEmployee(ctx context.Context, id int) (record entity.Record, err error) {
 	return record, nil
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/nickcoast/timetravel/entity"
 )
 
-func (s *SqliteRecordService) createAddress(ctx context.Context, timestamp time.Time, record entity.Record) (newRecord entity.Record, err error) {
+func (s *InsuredRecordService) createAddress(ctx context.Context, timestamp time.Time, record entity.Record) (newRecord entity.Record, err error) {
 	addressString := record.DataVal("address")
 	if addressString == "" {
 		return entity.Record{}, ErrServerError
@@ -35,21 +35,21 @@ func (s *SqliteRecordService) createAddress(ctx context.Context, timestamp time.
 	}
 	insured := entity.Insured{}
 	insured.FromRecord(insuredRecord)
-	addressCount, err := s.service.CountInsuredAddresses(ctx, insured)
+	addressCount, err := s.dbService.CountInsuredAddresses(ctx, insured)
 	if err != nil {
 		return newRecord, ErrServerError
 	}
 	if addressCount > 0 {
 		return newRecord, ErrRecordAlreadyExists
 	}
-	newRecord, err = s.service.CreateAddress(ctx, address)
+	newRecord, err = s.dbService.CreateAddress(ctx, address)
 	if err != nil {
 		return entity.Record{}, err
 	}
 	return newRecord, err
 }
 
-func (s *SqliteRecordService) updateAddress(ctx context.Context, timestamp time.Time, record entity.Record) (newRecord entity.Record, err error) {
+func (s *InsuredRecordService) updateAddress(ctx context.Context, timestamp time.Time, record entity.Record) (newRecord entity.Record, err error) {
 	name := record.DataVal("name")
 	fmt.Println("SqliteRecordService.updateAddress name:", name)
 
@@ -74,7 +74,7 @@ func (s *SqliteRecordService) updateAddress(ctx context.Context, timestamp time.
 	}
 	insured := entity.Insured{}
 	insured.FromRecord(insuredRecord)
-	addressCount, err := s.service.CountInsuredAddresses(ctx, insured)
+	addressCount, err := s.dbService.CountInsuredAddresses(ctx, insured)
 	if err != nil {
 		return newRecord, ErrServerError
 	}
@@ -82,7 +82,7 @@ func (s *SqliteRecordService) updateAddress(ctx context.Context, timestamp time.
 		return newRecord, ErrRecordDoesNotExist
 	}
 
-	newRecord, err = s.service.CreateAddress(ctx, address) // add record to DB indicating an address change
+	newRecord, err = s.dbService.CreateAddress(ctx, address) // add record to DB indicating an address change
 	if err != nil {
 		return entity.Record{}, err
 	}

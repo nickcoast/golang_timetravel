@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"log"
 
-
 	"github.com/nickcoast/timetravel/entity"
 )
 
-func (s *InsuredService) CreateAddress(ctx context.Context, address *entity.Address) (record entity.Record, err error) {
+func (s *InsuredDBService) CreateAddress(ctx context.Context, address *entity.Address) (record entity.Record, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return record, err
@@ -58,7 +57,7 @@ func createAddress(ctx context.Context, tx *Tx, address *entity.Address) (newRec
 	return newRecord, nil
 }
 
-func (s *InsuredService) CountInsuredAddresses(ctx context.Context, insured entity.Insured) (count int, err error) {
+func (s *InsuredDBService) CountInsuredAddresses(ctx context.Context, insured entity.Insured) (count int, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return count, err

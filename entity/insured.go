@@ -1,9 +1,7 @@
 package entity
 
-import (
-	"context"
+import (	
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 )
@@ -28,28 +26,6 @@ func (u *Insured) Validate() error {
 	return nil
 }
 
-// InsuredService represents a service for managing insureds.
-type InsuredService interface {
-	// Retrieves a insured by ID
-	// Returns ENOTFOUND if insured does not exist.
-	FindInsuredByID(ctx context.Context, id int) (*Insured, error)
-
-	// Retrieves a list of insureds by filter. Also returns total count of matching
-	// insureds which may differ from returned results if filter.Limit is specified.
-	FindInsureds(ctx context.Context, filter InsuredFilter) ([]*Insured, int, error)
-
-	// Creates a new insured.
-	CreateInsured(ctx context.Context, insured *Insured) (Record, error)
-
-	// Updates a insured object. Returns ENOTFOUND if insured does not exist.
-	// REMOVED from interface. Will not support updates to the core table for now
-	/* UpdateInsured(ctx context.Context, id int, upd InsuredUpdate) (*Insured, error) */
-
-	// Permanently deletes a insured and all owned dials. Returns ENOTFOUND if
-	// insured does not exist.
-	// removed in favor of DB method
-	//DeleteInsured(ctx context.Context, id int) error
-}
 
 // InsuredFilter represents a filter passed to FindInsureds().
 type InsuredFilter struct {
@@ -112,8 +88,7 @@ func InsuredsFromRecords(records map[int]Record) (map[int]Insured, error) {
 	return insuredes, nil
 }
 
-func (i Insured) MarshalJSON() ([]byte, error) {
-	fmt.Println("MARSHHHHHHHHHHHHHHHHHHH")
+func (i Insured) MarshalJSON() ([]byte, error) {	
 	return json.Marshal(&struct {
 		ID              string           `json:"id"`
 		Name            string           `json:"name"`
@@ -132,3 +107,4 @@ func (i Insured) MarshalJSON() ([]byte, error) {
 		Addresses:       *i.Addresses,
 	})
 }
+
