@@ -46,7 +46,7 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 	requestRecord.Data = recordMap
 
 	fmt.Println("api.CreateInsured requestRecord", requestRecord)
-	newRecord, err := a.sqlite.CreateRecord(ctx, resource, requestRecord)
+	newRecord, err := a.sqlite.CreateResource(ctx, resource, requestRecord)
 
 	if err != nil {
 		errInWriting := writeError(w, err.Error(), http.StatusInternalServerError)

@@ -29,7 +29,7 @@ func (s *SqliteRecordService) createAddress(ctx context.Context, timestamp time.
 		fmt.Println("ii", ii)
 		return newRecord, fmt.Errorf("Insured ID required to create Address: %v", err)
 	}
-	insuredRecord, err := s.GetRecordById(ctx, "insured", address.InsuredId)
+	insuredRecord, err := s.GetResourceById(ctx, "insured", address.InsuredId)
 	if err != nil {
 		return newRecord, ErrNonexistentParentRecord
 	}
@@ -68,7 +68,7 @@ func (s *SqliteRecordService) updateAddress(ctx context.Context, timestamp time.
 		return newRecord, fmt.Errorf("Insured ID required to create Address: %v", err)
 	}
 
-	insuredRecord, err := s.GetRecordById(ctx, "insured", address.InsuredId)
+	insuredRecord, err := s.GetResourceById(ctx, "insured", address.InsuredId)
 	if err != nil {
 		return newRecord, ErrRecordIDInvalid
 	}

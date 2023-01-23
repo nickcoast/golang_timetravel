@@ -25,6 +25,28 @@ type Employee struct {
 	RecordTimestamp time.Time `json:"recordTimestamp"`
 }
 
+var _ InsuredInterface = (*Employee)(nil)
+
+func (u *Employee) GetId() int64 {
+	return int64(u.ID)
+}
+func (u *Employee) GetInsuredId() int64 {
+	return int64(u.InsuredId)
+}
+func (u *Employee) GetDataTableName() string {
+	return "employees_records"
+}
+func (u *Employee) GetIdentTableName() string {
+	return "employees"
+}
+func (u *Employee) GetInsertFields() map[string]string {
+	return map[string]string{
+		"name": u.Name,
+		"start_date": u.StartDate.Format("2006-01-02"),
+		"end_date":   u.EndDate.Format("2006-01-02"),
+	}
+}
+
 // Validate returns an error if the employee contains invalid fields.
 // This only performs basic validation.
 func (u *Employee) Validate() error {

@@ -12,8 +12,31 @@ import (
 	"github.com/nickcoast/timetravel/entity"
 )
 
+// InsuredService represents a service for managing insureds.
+type InsuredServices interface {
+	// Retrieves a insured by ID
+	// Returns ENOTFOUND if insured does not exist.
+	FindInsuredByID(ctx context.Context, id int) (*entity.Insured, error)
+
+	// Retrieves a list of insureds by filter. Also returns total count of matching
+	// insureds which may differ from returned results if filter.Limit is specified.
+	FindInsureds(ctx context.Context, filter entity.InsuredFilter) ([]*entity.Insured, int, error)
+
+	// Creates a new insured.
+	CreateInsured(ctx context.Context, insured *entity.Insured) (entity.Record, error)
+
+	// Updates a insured object. Returns ENOTFOUND if insured does not exist.
+	// REMOVED from interface. Will not support updates to the core table for now
+	/* UpdateInsured(ctx context.Context, id int, upd InsuredUpdate) (*Insured, error) */
+
+	// Permanently deletes a insured and all owned dials. Returns ENOTFOUND if
+	// insured does not exist.
+	// removed in favor of DB method
+	//DeleteInsured(ctx context.Context, id int) error
+}
+
 // Ensure service implements interface.
-var _ entity.InsuredService = (*InsuredService)(nil)
+var _ InsuredServices = (*InsuredService)(nil)
 
 // InsuredService represents a service for managing insureds.
 type InsuredService struct {

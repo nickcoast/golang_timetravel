@@ -47,7 +47,7 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 	requestRecord.Data = recordMap
 
 	fmt.Println("api.UpdateInsured requestRecord:", requestRecord)
-	newRecord, err := a.sqlite.UpdateRecord(ctx, resource, requestRecord)
+	newRecord, err := a.sqlite.UpdateResource(ctx, resource, requestRecord)
 
 	if err != nil && err.Error() == service.ErrRecordDoesNotExist.Error() {
 		errInWriting := writeError(w, err.Error(), http.StatusBadRequest)

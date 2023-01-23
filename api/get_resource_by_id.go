@@ -32,7 +32,7 @@ func (a *API) GetResourceById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	record, err := a.sqlite.GetRecordById(
+	record, err := a.sqlite.GetResourceById(
 		ctx,
 		resource,
 		int(idNumber),

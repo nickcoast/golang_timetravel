@@ -356,6 +356,29 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 	return records, nil
 }
 
+func generateSelectByDate(resourceName string, date time.Time) (query string) {
+	timestamp := date.Unix()
+	query = ""
+	if resourceName == "employees" {
+		query = `SELECT t3.employee_id as id, t3.id AS record_id, t2.insured_id, t3.name, t3.employee_id, t3.start_date, t3.end_date, t3.record_timestamp, MAX(t3.record_timestamp) as max_timestamp` + "\n" +
+			`FROM insured t1` + "\n" +
+			`JOIN employees t2 ON t1.id = t2.insured_id` + "\n" +
+			`JOIN employees_records t3 ON t2.id = t3.employee_id` + "\n" +
+			`WHERE t3.record_timestamp <= ` + strconv.Itoa(int(timestamp)) + "\n" +
+			`AND t1.id = ?` + "\n" +
+			`GROUP BY insured_id, t2.id`
+	} else if resourceName == "insured_addresses" {
+		query = `SELECT t2.*, MAX(t2.record_timestamp) as max_timestamp` + "\n" +
+			`FROM insured t1` + "\n" +
+			`JOIN insured_addresses_records t2 ON t1.id = t2.insured_id` + "\n" +
+			`WHERE t2.record_timestamp <=` + strconv.Itoa(int(timestamp)) + "\n" +
+			`AND t1.id = ?` + "\n" +
+			`GROUP BY insured_id`
+	}
+	return query
+}
+
+
 func (db *DB) DeleteById(ctx context.Context, tableName string, id int64) (deletedRecord entity.Record, err error) {
 	if id == 0 {
 		return deletedRecord, ErrRecordIDInvalid

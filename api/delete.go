@@ -30,7 +30,7 @@ func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// first retrieve the record
-	_, err = a.sqlite.GetRecordById(
+	_, err = a.sqlite.GetResourceById(
 		ctx,
 		resource,
 		int(idNumber),
@@ -43,7 +43,7 @@ func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	/* this API response can give the user a chance to "undo" by sumbitting this data as a new record */
-	deletedRecord, err := a.sqlite.DeleteRecord(ctx, resource, idNumber)
+	deletedRecord, err := a.sqlite.DeleteResource(ctx, resource, idNumber)
 	if err != nil {
 		err := writeError(w, "Bad request or server error", http.StatusBadRequest)
 		logError(err)
