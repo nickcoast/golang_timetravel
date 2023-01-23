@@ -38,8 +38,9 @@ type ObjectResourceService interface {
 	//DeleteResource(ctx context.Context, resource string, id int64) (entity.Record, error)
 	DeleteResource(ctx context.Context, insuredType entity.InsuredInterface, id int64) (entity.InsuredInterface, error)
 
-	GetResourceByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, date time.Time) (records entity.Record, err error)
-	//GetResourceByDate(ctx context.Context, insuredType entity.InsuredInterface, date time.Time) (entity.InsuredInterface, error)
+	//GetResourceByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, date time.Time) (records entity.Record, err error)
+	// TODO: remove natural key. Maybe insuredId
+	GetResourceByDate(ctx context.Context, insuredIfaceObj entity.InsuredInterface, naturalKey string, insuredId int64, date time.Time) (entity.InsuredInterface, error)
 
 	GetInsuredByDate(ctx context.Context, insuredId int64, date time.Time) (insured entity.Insured, err error)
 	//GetInsuredByDate(ctx context.Context, insuredType entity.InsuredInterface, date time.Time) (entity.InsuredInterface, error)
@@ -159,20 +160,18 @@ func (s *SqliteRecordService) GetInsuredByDate(ctx context.Context, insuredId in
 }
 
 // TODO: use map for natural key, or struct
-func (s *SqliteRecordService) GetResourceByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, dateValid time.Time) (entity.Record, error) {
+func (s *SqliteRecordService) GetResourceByDate(ctx context.Context, insuredIfaceObj entity.InsuredInterface, naturalKey string, insuredId int64, dateValid time.Time) (entity.InsuredInterface, error) {
 	if insuredId == 0 {
-		return entity.Record{}, ErrNonexistentParentRecord
+		return nil, ErrNonexistentParentRecord
 	}
-	if resource == "employee" {
-		resource = "employees"
-	}
-	record, err := s.service.Db.GetByDate(ctx, resource, naturalKey, insuredId, dateValid)
+
+	record, err := s.service.Db.GetByDate(ctx, insuredIfaceObj , naturalKey, insuredId, dateValid)
 	if err != nil {
-		return entity.Record{}, ErrServerError
+		return nil, ErrServerError
 	}
 	fmt.Println("service.SqliteRecordService.GetRecordByDate: records", record)
 	for _, r := range record {
 		return r, nil
 	}
-	return entity.Record{}, nil
+	return nil, ErrRecordDoesNotExist
 }

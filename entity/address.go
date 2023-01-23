@@ -129,6 +129,18 @@ func AddressesFromRecords(records map[int]Record) (map[int]Address, error) {
 	return addresses, nil
 }
 
+// Returns Address map. Skips any non-addresss
+func AddressesFromInsuredInterface( insuredIfaceObjs map[int]InsuredInterface) (map[int]Address, error) {
+	addresss := make(map[int]Address)
+	for i, obj := range insuredIfaceObjs {
+		e, ok := obj.(*Address)
+		if ok {
+			addresss[i] = *e
+		}
+	}
+	return addresss, nil
+}
+
 func (a Address) MarshalJSON() ([]byte, error) {
 	if a.ID == 0 {
 		return json.Marshal(&struct {

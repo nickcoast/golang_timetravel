@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/nickcoast/timetravel/entity"
 )
 
 // API V2
@@ -14,9 +15,7 @@ import (
 // Get unique records for this resource valid at this date
 func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	requestType := mux.Vars(r)["type"]
-
-	resource, err := resourceNameFromSynonym(requestType)
+	insuredObject, err := a.NewInsuredObjectFromRequest(r)		
 	if err != nil {
 		err := writeError(w, err.Error(), http.StatusBadRequest)
 		logError(err)
@@ -28,17 +27,15 @@ func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 	insuredId := mux.Vars(r)["insuredId"]
 	idNumber, err := strconv.ParseInt(insuredId, 10, 32)
 
-	fmt.Println("api.GetResourceByDate date:", date)
-	fmt.Println("api.GetResourceByDate resource:", resource)
 	dateTime, err := time.Parse("2006-01-02", date)
-
 	if err != nil {
 		err := writeError(w, fmt.Sprintf("Please submit date in format: 2006-01-02. Or submit timestamp"), http.StatusBadRequest)
 		logError(err)
 		return
 	}
 
-	if resource == "insured" {
+	_, ok := insuredObject.(*entity.Insured)
+	if ok {
 		insured, err := a.sqlite.GetInsuredByDate(ctx, idNumber, dateTime)
 		if err != nil {
 			err := writeError(w, fmt.Sprintf("No record for Insured %v and date %v exist", idNumber, date), http.StatusBadRequest)
@@ -52,13 +49,13 @@ func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 
 	record, err := a.sqlite.GetResourceByDate(
 		ctx,
-		resource,
+		insuredObject,
 		naturalKey,
 		idNumber,
 		dateTime,
 	)
 	fmt.Println(record)
-	if err != nil || record.ID == 0 {
+	if err != nil || record.GetId() == 0 {
 		err := writeError(w, fmt.Sprintf("No record for Insured %v and date %v exist", idNumber, date), http.StatusBadRequest)
 		logError(err)
 		return

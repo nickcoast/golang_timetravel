@@ -176,6 +176,18 @@ func EmployeesFromRecords(records map[int]Record) (map[int]Employee, error) {
 	return employeees, nil
 }
 
+// Returns Employee map. Skips any non-employees
+func EmployeesFromInsuredInterface( insuredIfaceObjs map[int]InsuredInterface) (map[int]Employee, error) {
+	employees := make(map[int]Employee)
+	for i, obj := range insuredIfaceObjs {
+		e, ok := obj.(*Employee)
+		if ok {
+			employees[i] = *e
+		}
+	}
+	return employees, nil
+}
+
 func (e Employee) MarshalJSON() ([]byte, error) {	
 	if e.ID == 0 {
 		return json.Marshal(&struct {
