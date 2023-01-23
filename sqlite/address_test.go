@@ -32,11 +32,13 @@ func TestAddressService_CreateAddress(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		addressObj := &entity.Address{}
+		addressObj.FromRecord(newRecord)
 
 		fmt.Println("New address created")
 
-		addressRec, err := s.Db.GetById(ctx, "insured_addresses", int64(newRecord.ID))
-		gottenId := int64(addressRec.ID)
+		addressRec, err := s.Db.GetById(ctx, addressObj, int64(newRecord.ID))
+		gottenId := addressRec.GetId()
 
 		if err != nil {
 			fmt.Println("id", newRecord, "gottenId:", gottenId)
@@ -57,7 +59,7 @@ func TestAddressService_CreateAddress(t *testing.T) {
 		// Fetch address from database & compare.
 		uRecord := address1.ToRecord()
 		//u2Record := u2.ToRecord()
-		if other, err := s.Db.GetById(ctx, "insured_addresses", 5); err != nil {
+		if other, err := s.Db.GetById(ctx, &entity.Employee{}, 5); err != nil {
 			t.Fatal(err)
 		} else if !cmp.Equal(other, uRecord) {
 			t.Fatal("Records are not equal")
@@ -147,7 +149,7 @@ func TestAddressService_FindAddress(t *testing.T) {
 		db := MustOpenDB(t)
 		defer MustCloseDB(t, db)
 		//s := sqlite.NewInsuredService(db)
-		if _, err := db.GetById(context.Background(), "insured_addresses", 999); err == nil {
+		if _, err := db.GetById(context.Background(), &entity.Employee{}, 999); err == nil {
 			//t.Fatalf("unexpected error: %#v", err)
 			t.Fatalf("Should be an error.") // TODO: test for specific error
 		}

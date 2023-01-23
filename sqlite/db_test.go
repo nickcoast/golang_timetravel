@@ -79,8 +79,8 @@ func TestDB_GetResourceById(tb *testing.T) {
 		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "sue" /* PolicyNumber: 503, */, RecordTimestamp: pastTimestamp}) // id: 6, pn: 1005
 
 		pastTimestampString := strconv.FormatInt(pastTimestamp.Unix(), 10)
-		insuredID := 6
-		m := map[string]string{"id": strconv.Itoa(insuredID), "name": "sue", "policy_number": "1005", "record_timestamp": pastTimestampString}
+		insuredID := int64(6)
+		m := map[string]string{"id": strconv.Itoa(int(insuredID)), "name": "sue", "policy_number": "1005", "record_timestamp": pastTimestampString}
 
 		wantRecord := entity.Record{
 			ID:   int(insuredID),
@@ -88,13 +88,13 @@ func TestDB_GetResourceById(tb *testing.T) {
 		}
 
 		fmt.Println("wantRecord", wantRecord)
-		if record, err := db.GetById(ctx, "insured", int64(insuredID)); err != nil {
+		if record, err := db.GetById(ctx, &entity.Insured{}, int64(insuredID)); err != nil {
 			tb.Fatal(err)
-		} else if got, want := record.ID, insuredID; got != want {
+		} else if got, want := record.GetId(), insuredID; got != want {
 			tb.Fatalf("ID=%v, want %v", got, want)
-		} else if got, want := record.ID, wantRecord.ID; !cmp.Equal(got, want) { // ?? why doesn't it pass if I compare the structs??
+		} else if got, want := record.GetId(), wantRecord.ID; !cmp.Equal(got, want) { // ?? why doesn't it pass if I compare the structs??
 			tb.Fatalf("No match. got record: %v, want: %v", got, want)
-		} else if got, want := record.Data, wantRecord.Data; !cmp.Equal(got, want) {
+		} else if got, want := record.GetId(), wantRecord.Data; !cmp.Equal(got, want) {
 			tb.Fatalf("No match. got record: %v, want: %v", got, want)
 		}
 
@@ -110,7 +110,7 @@ func TestDB_GetResourceById(tb *testing.T) {
 		MustCreateEmployee(tb, ctx, db, emp2) // id: 8
 
 		e2Record := emp2.ToRecord()
-		record, err := db.GetById(ctx, "employees", int64(9))
+		record, err := db.GetById(ctx, &entity.Employee{}, int64(9))
 		if err != nil {
 			tb.Fatal(err)
 		}

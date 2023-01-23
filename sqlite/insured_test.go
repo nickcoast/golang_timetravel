@@ -67,7 +67,7 @@ func TestInsuredService_CreateInsured(t *testing.T) {
 			t.Fatal("Unexpected policy_number created: ", policyNumber2, " - Expected: ", expectedPolicyNumber2)
 		}
 		// Fetch insured from database & compare.
-		if other, err := db.GetById(context.Background(), "insured", 3); err != nil {
+		if other, err := db.GetById(context.Background(), &entity.Insured{}, 3); err != nil {
 			//if other, err := db.GetById(context.Background(), "insured", 3); err != nil {
 			t.Fatal(err)
 		} else if !cmp.Equal(newRecord, other) {
@@ -157,7 +157,7 @@ func TestInsuredService_FindInsured(t *testing.T) {
 		db := MustOpenDB(t)
 		defer MustCloseDB(t, db)
 		s := sqlite.NewInsuredService(db)
-		if _, err := s.Db.GetById(context.Background(), "insured", 1111); err == nil { // TODO: entity.ErrorCode(err) != entity.ENOTFOUND
+		if _, err := s.Db.GetById(context.Background(), &entity.Insured{}, 1111); err == nil { // TODO: entity.ErrorCode(err) != entity.ENOTFOUND
 			t.Fatalf("unexpected error: %#v", err)
 		}
 	})

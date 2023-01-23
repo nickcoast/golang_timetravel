@@ -60,10 +60,13 @@ func (s *InsuredService) FindInsuredByID(ctx context.Context, id int) (insured *
 	fmt.Println("InsuredService.FindInsuredByID id:", id)
 
 	// Fetch insured
-	record, err := s.Db.GetById(ctx, "insured", int64(id))
-	if err != nil {
-		insured.FromRecord(record)
+	record, err := s.Db.GetById(ctx, &entity.Insured{}, int64(id))
+	if err != nil {		
 		return insured, err
+	}
+	insured, ok := record.(*entity.Insured)
+	if !ok {
+		return insured, ErrRecordIDInvalid
 	}
 	return insured, nil
 }

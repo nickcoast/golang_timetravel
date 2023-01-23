@@ -6,6 +6,7 @@ import (
 	"errors"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"database/sql/driver"
 	"embed"
@@ -33,8 +34,8 @@ type DB struct {
 	cancel func()
 	DSN    string
 
-	tableNames         map[string]int
-	allowedNaturalKeys map[string]int
+	tableNames         map[string]int // TODO: DELETE?
+	allowedNaturalKeys map[string]int // TODO: DELETE
 
 	Now func() time.Time
 }
@@ -146,78 +147,147 @@ func (db *DB) migrateFile(name string) error {
 	return tx.Commit()
 }
 
-func (db *DB) GetById(ctx context.Context, tableName string, id int64) (record entity.Record, err error) {
+// TODO: change tableName to entity.InsuredInterface
+func (db *DB) GetById(ctx context.Context, insuredObj entity.InsuredInterface, id int64) (record entity.InsuredInterface, err error) {
 	if id == 0 {
 		return record, ErrRecordDoesNotExist
 	}
 	tx, err := db.db.Begin()
+	defer tx.Commit()
 	if err != nil {
 		return record, err
 	}
 	defer tx.Rollback()
 
-	fmt.Println("sqlite DB.GetById")
-
-	if _, ok := db.tableNames[tableName]; !ok {
-		fmt.Println("tableName", tableName)
-		return record, fmt.Errorf("DB - table name doesn't exist.")
+	switch objType := insuredObj.(type) {
+	case *entity.Insured:
+		return db.GetInsuredById(ctx, *objType, id)
+	case *entity.Employee:
+		return db.GetEmployeeById(ctx, *objType, id)
+	case *entity.Address:
+		return db.GetAddressById(ctx, *objType, id)
 	}
+	return nil, err
+}
 
-	rows, err := tx.QueryContext(ctx, `SELECT * FROM `+tableName+` WHERE id = ?`, id)
+// GetInsuredById returns the insured record for this Id
+func (db *DB) GetInsuredById(ctx context.Context, insured entity.Insured, id int64) (*entity.Insured, error) {
+	if id == 0 {
+		return &entity.Insured{}, ErrRecordDoesNotExist
+	}
+	tx, err := db.db.Begin()
+	if err != nil {
+		return &entity.Insured{}, err
+	}
+	defer tx.Rollback()
+
+	ids := []int64{id}
+	query := generateSelectByIds(&insured, ids)
+
+	rows, err := tx.QueryContext(ctx, query) // id(s) are inserted in generateSelectByIds
 	if err != nil {
 		fmt.Println("bad query")
-		return record, fmt.Errorf("Query failed")
+		return &entity.Insured{}, fmt.Errorf("Query failed")
 	}
 
-	// https://kylewbanks.com/blog/query-result-to-map-in-golang
-	columnNames, err := rows.Columns()
-	fmt.Println(columnNames)
-	recordMap := map[string]string{}
-	m := make(map[string]interface{})
-	rowCount := 0
 	for rows.Next() {
-		columns := make([]interface{}, len(columnNames))
-		columnPointers := make([]interface{}, len(columnNames))
-
-		for i := range columns {
-			columnPointers[i] = &columns[i]
+		if err := rows.Scan(&insured.ID,
+			&insured.Name,
+			&insured.PolicyNumber,
+			(*NullTime)(&insured.RecordTimestamp),
+		); err != nil {
+			return &entity.Insured{}, err
 		}
-
-		if err := rows.Scan(columnPointers...); err != nil {
-			return record, err
-		}
-		// Make map, get value for each column
-		for i, colName := range columnNames {
-			val := columnPointers[i].(*interface{})
-			m[colName] = *val
-		}
-		rowCount++
-		fmt.Print("Incremented rowCount:", rowCount)
 	}
-	if rowCount == 0 {
-		fmt.Println("rowCount:", rowCount, "m:", m, "table:", tableName)
-		return record, ErrRecordDoesNotExist
-	}
-	fmt.Println(recordMap)
 	if err := rows.Err(); err != nil {
-		return record, fmt.Errorf("rowsErr: %v", err)
+		return &entity.Insured{}, fmt.Errorf("rowsErr: %v", err)
 	}
 
-	// convert to string map
-	data := make(map[string]string)
-	for key, value := range m {
-		strKey := fmt.Sprintf("%v", key)
-		strVal := fmt.Sprintf("%v", value)
-		data[strKey] = strVal
-	}
-
-	record = entity.Record{
-		ID:   int(id),
-		Data: data,
-	}
-	fmt.Println("db:", record)
 	tx.Commit()
-	return record, err
+	return &insured, err
+}
+
+// GetEmployeeById returns the most recent employee record for this Id
+func (db *DB) GetEmployeeById(ctx context.Context, employee entity.Employee, id int64) (*entity.Employee, error) {
+	if id == 0 {
+		return &entity.Employee{}, ErrRecordDoesNotExist
+	}
+	tx, err := db.db.Begin()
+	if err != nil {
+		return &entity.Employee{}, err
+	}
+	defer tx.Rollback()
+
+	ids := []int64{id}
+	query := generateSelectByIds(&employee, ids)
+
+	rows, err := tx.QueryContext(ctx, query) // id(s) are inserted in generateSelectByIds
+	if err != nil {
+		fmt.Println("bad query")
+		return &entity.Employee{}, fmt.Errorf("Query failed")
+	}
+	var recordId int
+	var garbage int
+	for rows.Next() {
+		if err := rows.Scan(
+			&employee.ID,
+			&recordId, // not implemented in Employee yet
+			&employee.InsuredId,
+			&employee.Name,
+			(*ShortTime)(&employee.StartDate),
+			(*ShortTime)(&employee.EndDate),
+			(*NullTime)(&employee.RecordTimestamp),
+			&garbage, // same as RecordTimestamp
+
+		); err != nil {
+			return &entity.Employee{}, err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return &entity.Employee{}, fmt.Errorf("rowsErr: %v", err)
+	}
+
+	tx.Commit()
+	return &employee, err
+}
+
+// GetAddressById exactly the same as GetEmployeeById but for Address
+func (db *DB) GetAddressById(ctx context.Context, address entity.Address, id int64) (*entity.Address, error) {
+	if id == 0 {
+		return &entity.Address{}, ErrRecordDoesNotExist
+	}
+	tx, err := db.db.Begin()
+	if err != nil {
+		return &entity.Address{}, err
+	}
+	defer tx.Rollback()
+
+	ids := []int64{id}
+	query := generateSelectByIds(&address, ids)
+
+	rows, err := tx.QueryContext(ctx, query) // id(s) are inserted in generateSelectByIds
+	if err != nil {
+		fmt.Println("bad query")
+		return &entity.Address{}, fmt.Errorf("Query failed")
+	}
+	var garbage int
+	for rows.Next() {
+		if err := rows.Scan(
+			&address.ID,
+			&address.Address,
+			&address.InsuredId,
+			(*NullTime)(&address.RecordTimestamp),
+			&garbage, // same as record_timestamp
+		); err != nil {
+			return &entity.Address{}, err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return &entity.Address{}, fmt.Errorf("rowsErr: %v", err)
+	}
+
+	tx.Commit()
+	return &address, err
 }
 
 // Get Insured entity with component employees and addresses valid at a particular date.
@@ -244,16 +314,19 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 	if err != nil {
 		return entity.Insured{}, FormatError(err)
 	}
-	insuredRecord, err := db.GetById(ctx, "insured", insuredId)
+	insuredIfaceObj, err := db.GetById(ctx, &entity.Insured{}, insuredId)
 	if err != nil {
 		return entity.Insured{}, FormatError(err)
 	}
 	employees, err := entity.EmployeesFromRecords(employeeRecords)
 	addresses, err := entity.AddressesFromRecords(addressRecords)
-	fmt.Println("Employees:", employees, "Addresses:", addresses)
-	insured.FromRecord(insuredRecord)
-	insured.Employees = &employees
-	insured.Addresses = &addresses
+
+	insuredObj, ok := insuredIfaceObj.(*entity.Insured)
+	if !ok {
+		return entity.Insured{}, fmt.Errorf("Internal Server Error")
+	}
+	insuredObj.Employees = &employees
+	insuredObj.Addresses = &addresses
 
 	tx.Commit()
 	return insured, nil
@@ -359,7 +432,7 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 func generateSelectByDate(resourceName string, date time.Time) (query string) {
 	timestamp := date.Unix()
 	query = ""
-	if resourceName == "employees" {
+	if resourceName == "employee" {
 		query = `SELECT t3.employee_id as id, t3.id AS record_id, t2.insured_id, t3.name, t3.employee_id, t3.start_date, t3.end_date, t3.record_timestamp, MAX(t3.record_timestamp) as max_timestamp` + "\n" +
 			`FROM insured t1` + "\n" +
 			`JOIN employees t2 ON t1.id = t2.insured_id` + "\n" +
@@ -367,7 +440,7 @@ func generateSelectByDate(resourceName string, date time.Time) (query string) {
 			`WHERE t3.record_timestamp <= ` + strconv.Itoa(int(timestamp)) + "\n" +
 			`AND t1.id = ?` + "\n" +
 			`GROUP BY insured_id, t2.id`
-	} else if resourceName == "insured_addresses" {
+	} else if resourceName == "insured" {
 		query = `SELECT t2.*, MAX(t2.record_timestamp) as max_timestamp` + "\n" +
 			`FROM insured t1` + "\n" +
 			`JOIN insured_addresses_records t2 ON t1.id = t2.insured_id` + "\n" +
@@ -378,8 +451,36 @@ func generateSelectByDate(resourceName string, date time.Time) (query string) {
 	return query
 }
 
+// generateSelectByIds can return multiple records
+func generateSelectByIds(resourceName entity.InsuredInterface, ids []int64) (query string) {
+	idString := idToString(ids)
+	query = ""
+	switch asdf := resourceName.(type) {
+	case *entity.Employee:
+		fmt.Println(asdf)
+		// MAX(record_timestamp) + GROUP BY max_record_timestamp gets us the most recent record in Sqlite.
+		// This kind of trick does not work in MySQL and probably not in Postgresql.
+		query = `SELECT t3.employee_id as id, t3.id AS record_id, t2.insured_id, t3.name, t3.start_date, t3.end_date, t3.record_timestamp, MAX(record_timestamp) AS max_record_timestamp` + "\n" +
+			`FROM employees t2` + "\n" +
+			`JOIN employees_records t3 ON t2.id = t3.employee_id` + "\n" +
+			`WHERE t2.id IN (` + idString + `)` + "\n" +
+			`GROUP BY t3.employee_id`
+	case *entity.Address:
+		query = `SELECT t2.*, MAX(t2.record_timestamp) as max_timestamp` + "\n" +
+			`FROM insured_addresses_records t2` + "\n" +
+			`WHERE t2.id IN (` + idString + `)`
+	case *entity.Insured:
+		query = `SELECT * FROM insured WHERE id IN (` + idString + ")"
+	default:
+		query = ""
+	}
+	return query
+}
+func idToString(ids []int64) string {
+	return strings.Trim(strings.Join(strings.Fields(fmt.Sprint(ids)), ","), "[]")
+}
 
-func (db *DB) DeleteById(ctx context.Context, tableName string, id int64) (deletedRecord entity.Record, err error) {
+func (db *DB) DeleteById(ctx context.Context, insuredObj entity.InsuredInterface, id int64) (deletedRecord entity.InsuredInterface, err error) {
 	if id == 0 {
 		return deletedRecord, ErrRecordIDInvalid
 	}
@@ -389,27 +490,23 @@ func (db *DB) DeleteById(ctx context.Context, tableName string, id int64) (delet
 	}
 	defer tx.Rollback()
 
-	fmt.Println("sqlite DB.DeleteById")
-
-	if _, ok := db.tableNames[tableName]; !ok {
-		fmt.Println("tableName", tableName)
-		return deletedRecord, fmt.Errorf("DB - table name doesn't exist.")
-	}
-	deletedRecord, err = db.GetById(ctx, tableName, id)
-	if err != nil {
-		return deletedRecord, entity.Errorf("Failed to get record before deletion. Aborting delete. Error: %v", err.Error())
-	}
+	tableName := insuredObj.GetIdentTableName()
 
 	query := `DELETE FROM ` + tableName + ` WHERE id = ?`
 	fmt.Println(query)
-	_, err = tx.ExecContext(ctx, query, id)
+	result, err := tx.ExecContext(ctx, query, id)
 	if err != nil {
-		fmt.Println("Failed to DELETE record", err)
-		return deletedRecord, fmt.Errorf("Failed to DELETE record. Error: %v", err.Error())
+		return insuredObj, fmt.Errorf("Server error.")
 	}
-
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return insuredObj, fmt.Errorf("Server error.")
+	}
+	if rows == 0 {
+		return insuredObj, ErrRecordDoesNotExist
+	}
 	tx.Commit()
-	return deletedRecord, nil
+	return insuredObj, nil // TODO: fill in insuredObj
 }
 
 /*
@@ -456,6 +553,34 @@ type Tx struct {
 func lastInsertID(result sql.Result) (int, error) {
 	id, err := result.LastInsertId()
 	return int(id), err
+}
+
+type ShortTime time.Time
+
+// convert short string time ("2006-01-02") to time.Time
+func (n *ShortTime) Scan(value interface{}) error {
+
+	valtypes := map[string]int{"string": 0}
+	valtype := reflect.TypeOf(value).String()
+	if _, ok := valtypes[valtype]; ok {
+		if strval, ok := value.(string); ok {
+			newTime, err := time.Parse("2006-01-02", strval)
+			*(*time.Time)(n) = newTime
+			fmt.Println(fmt.Errorf("Error converting string time to time.Time: %v", err))
+			return nil
+		} else {
+			fmt.Println("not an string")
+		}
+	}
+
+	if value == nil {
+		*(*time.Time)(n) = time.Time{}
+		return nil
+	} else if value, ok := value.(string); ok {
+		*(*time.Time)(n), _ = time.Parse(time.RFC3339, value)
+		return nil
+	}
+	return fmt.Errorf("NullTime: cannot scan to time.Time: %T", value)
 }
 
 // NullTime represents a helper wrapper for time.Time. It automatically converts

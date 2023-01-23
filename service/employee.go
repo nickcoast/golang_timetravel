@@ -24,7 +24,7 @@ func (s *SqliteRecordService) createEmployee(ctx context.Context, timestamp time
 		return newRecord, ErrRecordIDInvalid
 	}
 
-	_, err = s.GetResourceById(ctx, "insured", insuredId)
+	_, err = s.GetResourceById(ctx, &entity.Insured{}, insuredId)
 	if err != nil {
 		return newRecord, ErrNonexistentParentRecord
 	}

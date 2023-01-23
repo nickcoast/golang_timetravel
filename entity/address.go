@@ -3,7 +3,6 @@ package entity
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 )
@@ -131,7 +130,13 @@ func AddressesFromRecords(records map[int]Record) (map[int]Address, error) {
 }
 
 func (a Address) MarshalJSON() ([]byte, error) {
-	fmt.Println("MAAAAAAAAAADDDDDDDDDDDHHHHHHHHHHHHHHHH")
+	if a.ID == 0 {
+		return json.Marshal(&struct {
+			ID string `json:"id"`
+		}{
+			ID: "",
+		})
+	}
 	return json.Marshal(&struct {
 		ID              string `json:"id"`
 		Address         string `json:"address"`

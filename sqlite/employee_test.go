@@ -49,8 +49,8 @@ func TestInsuredService_CreateEmployee(t *testing.T) {
 
 		fmt.Println("New employee created")
 
-		employeeRec, err := s.Db.GetById(ctx, "employees", int64(newRecord.ID))
-		gottenId := int64(employeeRec.ID)
+		employeeRec, err := s.Db.GetById(ctx, &entity.Employee{}, int64(newRecord.ID))
+		gottenId := employeeRec.GetId()
 
 		if err != nil {
 			fmt.Println("id", newRecord, "gottenId:", gottenId)
@@ -80,7 +80,7 @@ func TestInsuredService_CreateEmployee(t *testing.T) {
 		// Fetch employee from database & compare.
 		uRecord := employee1.ToRecord()
 		//u2Record := u2.ToRecord()
-		if other, err := s.Db.GetById(ctx, "employees", 8); err != nil {
+		if other, err := s.Db.GetById(ctx, &entity.Employee{}, 8); err != nil {
 			t.Fatal(err)
 		} else if !cmp.Equal(other, uRecord) {
 			fmt.Println()
@@ -171,7 +171,7 @@ func TestInsuredService_FindEmployee(t *testing.T) {
 		db := MustOpenDB(t)
 		defer MustCloseDB(t, db)
 		//s := sqlite.NewInsuredService(db)
-		if _, err := db.GetById(context.Background(), "employees", 999); err == nil {
+		if _, err := db.GetById(context.Background(), &entity.Employee{}, 999); err == nil {
 			//t.Fatalf("unexpected error: %#v", err)
 			t.Fatalf("Should be an error.") // TODO: test for specific error
 		}

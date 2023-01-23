@@ -36,15 +36,15 @@ func writeError(w http.ResponseWriter, message string, statusCode int) error {
 	)
 }
 
-// handle erroneous api paths
+// convert API path to insured struct name
 func resourceNameFromSynonym(resourceSynonym string) (resourceName string, err error) {
 	// TODO: send response with correct API path
 	synonyms := map[string]string{
-		"addresses":         "insured_addresses",
-		"address":           "insured_addresses",
-		"insured_addresses": "insured_addresses",
-		"employee":          "employees",
-		"employees":         "employees",
+		"addresses":         "address",
+		"address":           "address",
+		"insured_addresses": "address",
+		"employee":          "employee",
+		"employees":         "employee",
 		"insureds":          "insured",
 		"insured":           "insured",
 	}
