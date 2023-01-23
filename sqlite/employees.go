@@ -136,8 +136,10 @@ func updateEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (rec
 	return record, nil
 }
 
-// Check exists employee (regardless of time-travelable attributes)
+// CountEmployeeRecords checks exists employee (regardless of time-travelable attributes)
 // if exists, then API consumer should be submitting "UPDATE"
+//
+// TODO: check if can use general solution in *DB
 func (s *InsuredService) CountEmployeeRecords(ctx context.Context, employee entity.Employee) (count int, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
 	if err != nil {
@@ -149,12 +151,10 @@ func (s *InsuredService) CountEmployeeRecords(ctx context.Context, employee enti
 	}
 	query := `
 	SELECT COUNT(*) FROM employees
-	WHERE name = ?
-	AND insured_id = ?		
+	WHERE id = ?	
 `
 	result, err := tx.QueryContext(ctx, query,
-		employee.Name,
-		employee.InsuredId,
+		employee.ID,
 	)
 
 	if err != nil {
