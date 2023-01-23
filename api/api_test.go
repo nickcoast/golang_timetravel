@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	
 	"regexp"
 	"strings"
 
@@ -27,6 +28,7 @@ import (
 type APItest struct {
 	db         *sqlite.DB
 	HTTPServer *http.Server
+	tempDir		*string
 }
 
 /* func TestGetById(t *testing.T) {
@@ -86,23 +88,34 @@ func TestAPI_GetById(t *testing.T) {
 
 }
 
-func TestAPI_GetResourceByTimestamp(t *testing.T) {
+func TestAPI_GetByTime(t *testing.T) {
 	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
 	defer MustCloseDB(t, db)
+	t.Run("TestAPI_GetByTime_Timestamp", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/v2/insured/getbytimestamp/2/954590400", nil)
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusOK, response.Code)
 
-	req, _ := http.NewRequest("GET", "/api/v2/insured/getbytimestamp/2/954590400", nil)
-	response := executeRequest(req, httpserver)
-	checkResponseCode(t, http.StatusOK, response.Code)
+		responseString := `{"id":"2","name":"John Smith","policy_number":"1001","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC","employees":{"0":{"id":"3","name":"John Smith","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC"},"1":{"id":"4","name":"Jane Doe","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"},"2":{"id":"5","name":"Grant Tombly","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"}},"insuredAddresses":{}}` + "\n"
+		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
+		checkResponseData(t, responseString, response.Body.String(), false)
+	})
+	t.Run("TestAPI_GetByTime_Timestamp", func(t *testing.T) { // same date as timestamp 954590400
+		req, _ := http.NewRequest("GET", "/api/v2/insured/getbydate/2/2000-04-01", nil)
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusOK, response.Code)
 
-	responseString := "{\"id\":2,\"data\":{\"id\":\"2\",\"name\":\"John Smith\",\"policy_number\":\"1001\",\"record_timestamp\":\"946684799\"}}\n"
-	fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-	checkResponseData(t, responseString, response.Body.String(), false)
+		responseString := `{"id":"2","name":"John Smith","policy_number":"1001","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC","employees":{"0":{"id":"3","name":"John Smith","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC"},"1":{"id":"4","name":"Jane Doe","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"},"2":{"id":"5","name":"Grant Tombly","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"}},"insuredAddresses":{}}` + "\n"
+		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
+		checkResponseData(t, responseString, response.Body.String(), false)
+	})
 }
 
 func TestAPI_DeleteResourceById(t *testing.T) {
 	t.Run("TestAPI_DeleteResourceById_Insured", func(t *testing.T) {
 		_, httpserver, db := MustOpenDBAndSetUpRoutes(t) // TODO: make so only do this once per set of tests.
 		defer MustCloseDB(t, db)
+		//defer MustCloseDBAndDelete(t, db, )
 
 		req, _ := http.NewRequest("DELETE", "/api/v2/employees/delete/4", nil)
 		response := executeRequest(req, httpserver)
@@ -207,6 +220,12 @@ func MustCloseDB(tb testing.TB, db *sqlite.DB) {
 		tb.Fatal(err)
 	}
 }
+/* 
+TODO: delete DB after tests that alter it
+func MustCloseDBAndDelete(tb testing.TB, db *sqlite.DB, dir string) {
+	MustCloseDB(tb, db)
+	os.Remove(dir) // dangerous?
+} */
 
 //"*mux.Router, service.SqliteRecordService, "
 

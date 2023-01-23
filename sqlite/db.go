@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -251,44 +252,48 @@ func (db *DB) GetEmployeeById(ctx context.Context, employee entity.Employee, id 
 	return &employee, err
 }
 
+// scanRows. Note: cannot handle empty result set
 func scanRows(ctx context.Context, insuredIfaceObj entity.InsuredInterface, rows *sql.Rows) (map[int]entity.InsuredInterface, error) {
 	insuredIfaceMap := make(map[int]entity.InsuredInterface)
 	switch insuredObj := insuredIfaceObj.(type) {
 	case *entity.Employee:
 		var recordId int
 		var garbage int
+		fmt.Println("Must use variable insuredObj:", insuredObj)
 		i := 0
 		for rows.Next() {
+			employee := entity.Employee{}
 			if err := rows.Scan( // will this overwrite with each loop??
-				&insuredObj.ID,
+				&employee.ID,
 				&recordId, // not implemented in Employee yet
-				&insuredObj.InsuredId,
-				&insuredObj.Name,
-				(*ShortTime)(&insuredObj.StartDate),
-				(*ShortTime)(&insuredObj.EndDate),
-				(*NullTime)(&insuredObj.RecordTimestamp),
+				&employee.InsuredId,
+				&employee.Name,
+				(*ShortTime)(&employee.StartDate),
+				(*ShortTime)(&employee.EndDate),
+				(*NullTime)(&employee.RecordTimestamp),
 				&garbage, // same as RecordTimestamp
 
-			); err != nil {				
+			); err != nil {
 				return nil, err
 			}
-			insuredIfaceMap[i] = insuredObj
+			insuredIfaceMap[i] = &employee
 			i++
 		}
 	case *entity.Address:
 		var garbage int
-		i := 0
+		i := 0		
 		for rows.Next() {
+			address := entity.Address{}
 			if err := rows.Scan(
-				&insuredObj.ID,
-				&insuredObj.Address,
-				&insuredObj.InsuredId,
-				(*NullTime)(&insuredObj.RecordTimestamp),
+				&address.ID,
+				&address.Address,
+				&address.InsuredId,
+				(*NullTime)(&address.RecordTimestamp),
 				&garbage, // same as record_timestamp
 			); err != nil {
 				return nil, err
 			}
-			insuredIfaceMap[i] = insuredObj
+			insuredIfaceMap[i] = &address
 			i++
 		}
 		if err := rows.Err(); err != nil {
@@ -297,21 +302,22 @@ func scanRows(ctx context.Context, insuredIfaceObj entity.InsuredInterface, rows
 	case *entity.Insured:
 		i := 0
 		for rows.Next() {
-			if err := rows.Scan(&insuredObj.ID,
-				&insuredObj.Name,
-				&insuredObj.PolicyNumber,
-				(*NullTime)(&insuredObj.RecordTimestamp),
+			insured := entity.Insured{}
+			if err := rows.Scan(&insured.ID,
+				&insured.Name,
+				&insured.PolicyNumber,
+				(*NullTime)(&insured.RecordTimestamp),
 			); err != nil {
 				return nil, err
 			}
-			insuredIfaceMap[i] = insuredObj
+			insuredIfaceMap[i] = &insured
 			i++
 		}
 		if err := rows.Err(); err != nil {
 			return nil, fmt.Errorf("rowsErr: %v", err)
 		}
 	}
-	return nil, fmt.Errorf("Server Error")
+	return insuredIfaceMap, nil
 }
 
 // GetAddressById exactly the same as GetEmployeeById but for Address
@@ -392,56 +398,57 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 	insuredObj.Addresses = &addresses
 
 	tx.Commit()
-	return insured, nil
+	return *insuredObj, nil
 }
 
 // TODO: can remove naturalKey from signature?
 func (db *DB) GetByDate(ctx context.Context, insuredIfaceObj entity.InsuredInterface, naturalKey string, insuredId int64, date time.Time) (records map[int]entity.InsuredInterface, err error) {
 	id := insuredId
 	if id == 0 {
-		return nil, ErrRecordDoesNotExist
+		return records, ErrRecordDoesNotExist
 	}
 	tx, err := db.db.Begin()
 	if err != nil {
-		return nil, err
+		return records, err
 	}
 	defer tx.Rollback()
+	count, err := db.CountInsuredRecordsAtDate(ctx, tx, insuredIfaceObj, insuredId, date)
+	if err != nil {
+		return records, fmt.Errorf("Server Error")
+	}
+	if count == 0 {
+		return records, nil
+	}
 
 	query := generateSelectByDate(insuredIfaceObj, date)
 	rows, err := tx.QueryContext(ctx, query, id)
 	if err != nil {
 		fmt.Println("bad query")
-		return nil, fmt.Errorf("Query failed")
+		return records, fmt.Errorf("Query failed")
 	}
-	scanRows(ctx, insuredIfaceObj, rows)
+	
 
-	//complexRecord := entity.Record{}
-	i = 0
-	for _, n := range dbRecords {
-		// convert to string map
-		data := make(map[string]string)
-		for key, value := range n {
-			strVal := fmt.Sprintf("%v", value)
-			strKey := fmt.Sprintf("%v", key)
-			if strVal != "0001-01-01" && strKey != "max_timestamp" { // skip our fake "NULL" date values and result of sql MAX()
-				data[strKey] = strVal
-			}
-		}
-		recordId, err := strconv.Atoi(data["id"])
-		if err != nil {
-			return nil, FormatError(ErrRecordIDInvalid)
-		}
-		record := entity.Record{
-			ID:   recordId,
-			Data: data,
-		}
-		records[i] = &entity.Insured{}
-		i++
+	records, err = scanRows(ctx, insuredIfaceObj, rows)
+	if err != nil {
+		return nil, fmt.Errorf("Server Error")
 	}
-
 	fmt.Println(records)
 	tx.Commit()
 	return records, nil
+}
+
+func (db *DB) CountInsuredRecordsAtDate(ctx context.Context, tx *sql.Tx, insuredIfaceObj entity.InsuredInterface, insuredId int64, date time.Time) (int, error) {
+	count := 0
+	query := generateSelectByDate(insuredIfaceObj, date)	
+	var re = regexp.MustCompile(`^(SELECT )(.*as max_timestamp)`)
+	query = re.ReplaceAllString(query, `${1}count(*) as count`)
+	re = regexp.MustCompile(`(?m:GROUP BY insured_id, t2\.id)$`)
+	query = re.ReplaceAllString(query, ``)
+	err := tx.QueryRowContext(ctx, query, insuredId).Scan(&count)
+	if err != nil {
+		return 0, err
+	}	
+	return count, nil
 }
 
 func generateSelectByDate(insuredIfaceObj entity.InsuredInterface, date time.Time) (query string) {
@@ -450,7 +457,7 @@ func generateSelectByDate(insuredIfaceObj entity.InsuredInterface, date time.Tim
 	switch insuredObj := insuredIfaceObj.(type) {
 	case *entity.Employee:
 		fmt.Println("Had to use variable, sorry", insuredObj)
-		query = `SELECT t3.employee_id as id, t3.id AS record_id, t2.insured_id, t3.name, t3.employee_id, t3.start_date, t3.end_date, t3.record_timestamp, MAX(t3.record_timestamp) as max_timestamp` + "\n" +
+		query = `SELECT t3.employee_id as id, t3.id AS record_id, t2.insured_id, t3.name, t3.start_date, t3.end_date, t3.record_timestamp, MAX(t3.record_timestamp) as max_timestamp` + "\n" +
 			`FROM insured t1` + "\n" +
 			`JOIN employees t2 ON t1.id = t2.insured_id` + "\n" +
 			`JOIN employees_records t3 ON t2.id = t3.employee_id` + "\n" +
