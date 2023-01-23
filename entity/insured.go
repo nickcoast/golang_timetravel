@@ -1,7 +1,6 @@
 package entity
 
-import (
-	"context"
+import (	
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -18,6 +17,24 @@ type Insured struct {
 	Employees       *map[int]Employee
 	Addresses       *map[int]Address
 }
+var _ InsuredInterface = (*Insured)(nil)
+
+// InsuredInterface for methods related to Insured objects (Insured, Employee, Address, and collections thereof)
+type InsuredInterface interface {
+	/* New() InsuredInterface // TODO: */
+	// TODO: check why naming this "GetId() int" caused error "type has no field or method GetId"
+	GetId() int64
+	GetInsuredId() int64
+	//DeleteId()
+	Validate() error
+	//ToRecord() Record
+	//FromRecord(r Record) (err error)
+	//MultipleFromRecords(records map[int]Record) (map[int]InsuredInterface, error)
+	MarshalJSON() ([]byte, error)
+	GetIdentTableName() string // table name with identity column
+	GetDataTableName() string // table name with values (may be the same as identity)
+	GetInsertFields() map[string]string
+}
 
 // Validate returns an error if the insured contains invalid fields.
 // This only performs basic validation.
@@ -27,29 +44,26 @@ func (u *Insured) Validate() error {
 	}
 	return nil
 }
-
-// InsuredService represents a service for managing insureds.
-type InsuredService interface {
-	// Retrieves a insured by ID
-	// Returns ENOTFOUND if insured does not exist.
-	FindInsuredByID(ctx context.Context, id int) (*Insured, error)
-
-	// Retrieves a list of insureds by filter. Also returns total count of matching
-	// insureds which may differ from returned results if filter.Limit is specified.
-	FindInsureds(ctx context.Context, filter InsuredFilter) ([]*Insured, int, error)
-
-	// Creates a new insured.
-	CreateInsured(ctx context.Context, insured *Insured) (Record, error)
-
-	// Updates a insured object. Returns ENOTFOUND if insured does not exist.
-	// REMOVED from interface. Will not support updates to the core table for now
-	/* UpdateInsured(ctx context.Context, id int, upd InsuredUpdate) (*Insured, error) */
-
-	// Permanently deletes a insured and all owned dials. Returns ENOTFOUND if
-	// insured does not exist.
-	// removed in favor of DB method
-	//DeleteInsured(ctx context.Context, id int) error
+func (u *Insured) GetId() int64 {
+	return int64(u.ID)
 }
+func (u *Insured) GetInsuredId() int64 {
+	return int64(u.ID)
+}
+func (u *Insured) GetDataTableName() string {
+	return "insured"
+}
+func (u *Insured) GetIdentTableName() string {
+	return "insured"
+}
+func (u *Insured) GetInsertFields() map[string]string {
+	return map[string]string{
+		"name": u.Name,
+		"policy_number":   strconv.Itoa(u.PolicyNumber),
+	}
+}
+
+
 
 // InsuredFilter represents a filter passed to FindInsureds().
 type InsuredFilter struct {

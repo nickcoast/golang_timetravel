@@ -10,11 +10,50 @@ import (
 	"github.com/nickcoast/timetravel/sqlite"
 )
 
+// ObjectResourceService - new interface to disentangle RDBMS from Record service interface
+//
+// returns "Insured" objects (Insured, Employee, Address, and collections thereof)
+//
+// TODO: change each return type to entity.InsuredInterface
+type ObjectResourceService interface {
+
+	// GetResource will retrieve an resource.
+	GetResourceById(ctx context.Context, resource string, id int) (entity.Record, error) // TODO: change resource from string to Struct
+	//GetResourceById(ctx context.Context, insuredType entity.InsuredInterface, id int64) (entity.InsuredInterface, error) // TODO: change resource from string to Struct
+
+	// CreateResource will insert a new resource.
+	//
+	// If it a resource with that id already exists it will fail.
+	CreateResource(ctx context.Context, resource string, record entity.Record) (entity.Record, error)
+	//CreateResource(ctx context.Context, insuredType entity.InsuredInterface) (entity.InsuredInterface, error)
+
+	// UpdateResource will change the internal `Map` values of the resource if they exist.
+	// if the update[key] is null it will delete that key from the resource's Map.
+	//
+	// UpdateResource will error if id <= 0 or the resource does not exist with that id.
+
+	UpdateResource(ctx context.Context, resource string, record entity.Record) (entity.Record, error)	
+	//UpdateResource(ctx context.Context, insuredType entity.InsuredInterface) ( entity.InsuredInterface, error)
+
+	DeleteResource(ctx context.Context, resource string, id int64) (entity.Record, error)
+	//DeleteResource(ctx context.Context, insuredType entity.InsuredInterface, id int64) (entity.InsuredInterface, error)
+
+	GetResourceByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, date time.Time) (records entity.Record, err error)
+	//GetResourceByDate(ctx context.Context, insuredType entity.InsuredInterface, date time.Time) (entity.InsuredInterface, error)
+
+	GetInsuredByDate(ctx context.Context, insuredId int64, date time.Time) (insured entity.Insured, err error)
+	//GetInsuredByDate(ctx context.Context, insuredType entity.InsuredInterface, date time.Time) (entity.InsuredInterface, error)
+}
+
+var _ ObjectResourceService = (*SqliteRecordService)(nil)
+
 // InMemoryRecordService is an in-memory implementation of RecordService.
 type SqliteRecordService struct {
 	data    map[int]entity.Record
 	service sqlite.InsuredService
 }
+
+//var _ ObjectResourceService = (*SqliteRecordService)(nil)
 
 func NewSqliteRecordService() SqliteRecordService {
 	return SqliteRecordService{
@@ -26,7 +65,7 @@ func (s *SqliteRecordService) SetService(db *sqlite.DB) {
 	s.service = *sqlite.NewInsuredService(db)
 }
 
-func (s *SqliteRecordService) CreateRecord(ctx context.Context, resource string, record entity.Record) (newRecord entity.Record, err error) {
+func (s *SqliteRecordService) CreateResource(ctx context.Context, resource string, record entity.Record) (newRecord entity.Record, err error) {
 	id := record.ID
 	if id != 0 {
 		return newRecord, ErrRecordIDInvalid
@@ -51,7 +90,7 @@ func (s *SqliteRecordService) CreateRecord(ctx context.Context, resource string,
 	return newRecord, nil
 }
 
-func (s *SqliteRecordService) UpdateRecord(ctx context.Context, resource string, record entity.Record) (updateRecord entity.Record, err error) {
+func (s *SqliteRecordService) UpdateResource(ctx context.Context, resource string, record entity.Record) (updateRecord entity.Record, err error) {
 	id := updateRecord.ID
 	if id != 0 {
 		return updateRecord, ErrRecordIDInvalid
@@ -69,7 +108,7 @@ func (s *SqliteRecordService) UpdateRecord(ctx context.Context, resource string,
 	return updateRecord, ErrRecordAlreadyExists
 }
 
-func (s *SqliteRecordService) GetRecordById(ctx context.Context, resource string, id int) (entity.Record, error) {
+func (s *SqliteRecordService) GetResourceById(ctx context.Context, resource string, id int) (entity.Record, error) {
 	if id == 0 {
 		return entity.Record{}, ErrRecordDoesNotExist
 	}
@@ -92,7 +131,7 @@ func (s *SqliteRecordService) GetRecordById(ctx context.Context, resource string
 	return e, nil
 }
 
-func (s *SqliteRecordService) DeleteRecord(ctx context.Context, resource string, id int64) (record entity.Record, err error) {
+func (s *SqliteRecordService) DeleteResource(ctx context.Context, resource string, id int64) (record entity.Record, err error) {
 	if id == 0 {
 		return record, ErrRecordDoesNotExist
 	}
@@ -131,7 +170,7 @@ func (s *SqliteRecordService) GetInsuredByDate(ctx context.Context, insuredId in
 }
 
 // TODO: use map for natural key, or struct
-func (s *SqliteRecordService) GetRecordByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, dateValid time.Time) (entity.Record, error) {
+func (s *SqliteRecordService) GetResourceByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, dateValid time.Time) (entity.Record, error) {
 	if insuredId == 0 {
 		return entity.Record{}, ErrNonexistentParentRecord
 	}

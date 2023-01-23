@@ -21,6 +21,27 @@ type Address struct {
 	RecordTimestamp time.Time `json:"recordTimestamp"`
 }
 
+var _ InsuredInterface = (*Address)(nil)
+
+func (u *Address) GetId() int64 {
+	return int64(u.ID)
+}
+func (u *Address) GetInsuredId() int64 {
+	return int64(u.InsuredId)
+}
+func (u *Address) GetDataTableName() string {
+	return "insured_addresses_records"
+}
+func (u *Address) GetIdentTableName() string {
+	return "insured_addresses_records"
+}
+func (u *Address) GetInsertFields() map[string]string {
+	return map[string]string{
+		"address": u.Address,
+		
+	}
+}
+
 // Validate returns an error if the address contains invalid fields.
 // This only performs basic validation.
 func (u *Address) Validate() error {

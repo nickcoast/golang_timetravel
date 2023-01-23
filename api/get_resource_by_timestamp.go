@@ -51,7 +51,7 @@ func (a *API) GetResourceByTimestamp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	record, err := a.sqlite.GetRecordByDate(
+	record, err := a.sqlite.GetResourceByDate(
 		ctx,
 		resource,
 		naturalKey,

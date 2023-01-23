@@ -12,11 +12,11 @@ import (
 
 type API struct {
 	records service.RecordService // memory
-	sqlite  service.RecordService // sqlite
+	sqlite  service.ObjectResourceService // sqlite
 
 }
 
-func NewAPI(records service.RecordService, sqlite service.RecordService) *API {
+func NewAPI(records service.RecordService, sqlite service.ObjectResourceService) *API {
 	return &API{records, sqlite}
 }
 
@@ -90,7 +90,7 @@ func (a *API) updateOrCreate(w http.ResponseWriter, r *http.Request, uOrC update
 
 	// TODO: any way to DRY this?
 	if uOrC == update {
-		record, err := a.sqlite.UpdateRecord(ctx, resource, requestRecord)
+		record, err := a.sqlite.UpdateResource(ctx, resource, requestRecord)
 		if err.Error() == "Record does not exist. Use 'new' instead" {
 			errInWriting := writeError(w, err.Error(), http.StatusBadRequest)
 			logError(err)
@@ -107,7 +107,7 @@ func (a *API) updateOrCreate(w http.ResponseWriter, r *http.Request, uOrC update
 		err = writeJSON(w, record, http.StatusOK) //TODO: actually return new record
 		logError(err)
 	} else if uOrC == create {
-		record, err := a.sqlite.CreateRecord(ctx, resource, requestRecord)
+		record, err := a.sqlite.CreateResource(ctx, resource, requestRecord)
 		if err.Error() == "Record already exists. Use 'update' to update" {
 			errInWriting := writeError(w, err.Error(), http.StatusBadRequest)
 			logError(err)

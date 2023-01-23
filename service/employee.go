@@ -12,7 +12,7 @@ import (
 
 func (s *SqliteRecordService) createEmployee(ctx context.Context, timestamp time.Time, record entity.Record) (newRecord entity.Record, err error) {
 	log.Println("SqliteRecordService createEmployee record:", record)
-	name := record.DataVal("name")	
+	name := record.DataVal("name")
 	insuredIdStr := record.DataVal("insuredId")
 	if insuredIdStr == "" {
 		log.Println("Missing insuredId")
@@ -24,7 +24,7 @@ func (s *SqliteRecordService) createEmployee(ctx context.Context, timestamp time
 		return newRecord, ErrRecordIDInvalid
 	}
 
-	_, err = s.GetRecordById(ctx, "insured", insuredId)
+	_, err = s.GetResourceById(ctx, "insured", insuredId)
 	if err != nil {
 		return newRecord, ErrNonexistentParentRecord
 	}
@@ -100,9 +100,7 @@ func (s *SqliteRecordService) updateEmployee(ctx context.Context, timestamp time
 
 	timestampString := timestamp.Format("2006-01-02T15:04:05Z07:00")
 
-
 	employee, err := entity.NewEmployee(name, startDate, endDate, insuredIdInt, timestampString)
-	
 
 	if err != nil {
 		fmt.Println("Error from entity.NewEmployee. Record:", record, "Employee:", employee)
@@ -117,7 +115,7 @@ func (s *SqliteRecordService) updateEmployee(ctx context.Context, timestamp time
 		return newRecord, ErrRecordDoesNotExist
 	}
 	newRecord, err = s.service.CreateEmployee(ctx, employee) // add record to DB with employee update
-	ed := newRecord.DataVal("end_date")	
+	ed := newRecord.DataVal("end_date")
 	if ed == "" || len(ed) != 10 || ed == "0001-01-01" {
 		fmt.Println("Bad endDate or error. SKIPPING (not required). End date: ", ed)
 		delete(newRecord.Data, "end_date")
