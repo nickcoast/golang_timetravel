@@ -43,8 +43,8 @@ type DB struct {
 func NewDB(dsn string) *DB {
 	tn := make(map[string]int)
 	tn["insured"] = 0
-	tn["employees"] = 1
-	tn["insured_addresses"] = 2
+	tn["employee"] = 1
+	tn["address"] = 2
 	ank := make(map[string]int)
 	ank["name"] = 0
 	ank["address"] = 1
@@ -306,11 +306,11 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 
 	fmt.Println("sqlite DB.GetInsuredByDate")
 
-	employeeRecords, err := db.GetByDate(ctx, "employees", "naturalkey", insuredId, date)
+	employeeRecords, err := db.GetByDate(ctx, "employee", "naturalkey", insuredId, date)
 	if err != nil {
 		return entity.Insured{}, FormatError(err)
 	}
-	addressRecords, err := db.GetByDate(ctx, "insured_addresses", "naturalkey", insuredId, date)
+	addressRecords, err := db.GetByDate(ctx, "address", "naturalkey", insuredId, date)
 	if err != nil {
 		return entity.Insured{}, FormatError(err)
 	}
@@ -343,28 +343,15 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 		return map[int]entity.Record{}, fmt.Errorf("DB - table name doesn't exist.")
 	}
 
-	timestamp := date.Unix()
-	fmt.Println("DB.GetByDate timestamp", timestamp)
 	tx, err := db.db.Begin()
 	if err != nil {
 		return map[int]entity.Record{}, err
 	}
 	defer tx.Rollback()
 
-	fmt.Println("sqlite DB.GetByDate")
+	
 
-	groupBy := ""
-	if tableName == "employees" {
-		groupBy = "t2.name"
-	} else {
-		groupBy = "t1.id"
-	}
-	query := `SELECT t2.*, MAX(t2.record_timestamp) as max_timestamp` + "\n" +
-		`FROM insured t1` + "\n" +
-		`JOIN ` + tableName + ` t2 ON t1.id = t2.insured_id` + "\n" +
-		`WHERE t2.record_timestamp <= ` + strconv.Itoa(int(timestamp)) + "\n" +
-		`AND t1.id = ?` + "\n" +
-		`GROUP BY insured_id, ` + groupBy
+	query := generateSelectByDate(tableName,date)
 	rows, err := tx.QueryContext(ctx, query, id)
 	if err != nil {
 		fmt.Println("bad query")
@@ -444,9 +431,14 @@ func generateSelectByDate(resourceName string, date time.Time) (query string) {
 		query = `SELECT t2.*, MAX(t2.record_timestamp) as max_timestamp` + "\n" +
 			`FROM insured t1` + "\n" +
 			`JOIN insured_addresses_records t2 ON t1.id = t2.insured_id` + "\n" +
-			`WHERE t2.record_timestamp <=` + strconv.Itoa(int(timestamp)) + "\n" +
+			`WHERE t2.record_timestamp <= ` + strconv.Itoa(int(timestamp)) + "\n" +
 			`AND t1.id = ?` + "\n" +
 			`GROUP BY insured_id`
+	} else if resourceName == "address" {
+		query = `SELECT t2.*, MAX(t2.record_timestamp) as max_timestamp` + "\n" +
+			`FROM insured_addresses_records t2` + "\n" +
+			`WHERE t2.record_timestamp <= ` + strconv.Itoa(int(timestamp)) + "\n" +
+			`AND t2.insured_id = ?`
 	}
 	return query
 }
