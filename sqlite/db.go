@@ -251,6 +251,69 @@ func (db *DB) GetEmployeeById(ctx context.Context, employee entity.Employee, id 
 	return &employee, err
 }
 
+func scanRows(ctx context.Context, insuredIfaceObj entity.InsuredInterface, rows *sql.Rows) (map[int]entity.InsuredInterface, error) {
+	insuredIfaceMap := make(map[int]entity.InsuredInterface)
+	switch insuredObj := insuredIfaceObj.(type) {
+	case *entity.Employee:
+		var recordId int
+		var garbage int
+		i := 0
+		for rows.Next() {
+			if err := rows.Scan( // will this overwrite with each loop??
+				&insuredObj.ID,
+				&recordId, // not implemented in Employee yet
+				&insuredObj.InsuredId,
+				&insuredObj.Name,
+				(*ShortTime)(&insuredObj.StartDate),
+				(*ShortTime)(&insuredObj.EndDate),
+				(*NullTime)(&insuredObj.RecordTimestamp),
+				&garbage, // same as RecordTimestamp
+
+			); err != nil {				
+				return nil, err
+			}
+			insuredIfaceMap[i] = insuredObj
+			i++
+		}
+	case *entity.Address:
+		var garbage int
+		i := 0
+		for rows.Next() {
+			if err := rows.Scan(
+				&insuredObj.ID,
+				&insuredObj.Address,
+				&insuredObj.InsuredId,
+				(*NullTime)(&insuredObj.RecordTimestamp),
+				&garbage, // same as record_timestamp
+			); err != nil {
+				return nil, err
+			}
+			insuredIfaceMap[i] = insuredObj
+			i++
+		}
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("rowsErr: %v", err)
+		}
+	case *entity.Insured:
+		i := 0
+		for rows.Next() {
+			if err := rows.Scan(&insuredObj.ID,
+				&insuredObj.Name,
+				&insuredObj.PolicyNumber,
+				(*NullTime)(&insuredObj.RecordTimestamp),
+			); err != nil {
+				return nil, err
+			}
+			insuredIfaceMap[i] = insuredObj
+			i++
+		}
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("rowsErr: %v", err)
+		}
+	}
+	return nil, fmt.Errorf("Server Error")
+}
+
 // GetAddressById exactly the same as GetEmployeeById but for Address
 func (db *DB) GetAddressById(ctx context.Context, address entity.Address, id int64) (*entity.Address, error) {
 	if id == 0 {
@@ -306,11 +369,11 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 
 	fmt.Println("sqlite DB.GetInsuredByDate")
 
-	employeeRecords, err := db.GetByDate(ctx, "employee", "naturalkey", insuredId, date)
+	employeeRecords, err := db.GetByDate(ctx, &entity.Employee{}, "naturalkey", insuredId, date)
 	if err != nil {
 		return entity.Insured{}, FormatError(err)
 	}
-	addressRecords, err := db.GetByDate(ctx, "address", "naturalkey", insuredId, date)
+	addressRecords, err := db.GetByDate(ctx, &entity.Address{}, "naturalkey", insuredId, date)
 	if err != nil {
 		return entity.Insured{}, FormatError(err)
 	}
@@ -318,8 +381,8 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 	if err != nil {
 		return entity.Insured{}, FormatError(err)
 	}
-	employees, err := entity.EmployeesFromRecords(employeeRecords)
-	addresses, err := entity.AddressesFromRecords(addressRecords)
+	employees, err := entity.EmployeesFromInsuredInterface(employeeRecords)
+	addresses, err := entity.AddressesFromInsuredInterface(addressRecords)
 
 	insuredObj, ok := insuredIfaceObj.(*entity.Insured)
 	if !ok {
@@ -333,63 +396,27 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 }
 
 // TODO: can remove naturalKey from signature?
-func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string, insuredId int64, date time.Time) (records map[int]entity.Record, err error) {
+func (db *DB) GetByDate(ctx context.Context, insuredIfaceObj entity.InsuredInterface, naturalKey string, insuredId int64, date time.Time) (records map[int]entity.InsuredInterface, err error) {
 	id := insuredId
 	if id == 0 {
-		return map[int]entity.Record{}, ErrRecordDoesNotExist
+		return nil, ErrRecordDoesNotExist
 	}
-	if _, ok := db.tableNames[tableName]; !ok {
-		fmt.Println("tableName", tableName)
-		return map[int]entity.Record{}, fmt.Errorf("DB - table name doesn't exist.")
-	}
-
 	tx, err := db.db.Begin()
 	if err != nil {
-		return map[int]entity.Record{}, err
+		return nil, err
 	}
 	defer tx.Rollback()
 
-	
-
-	query := generateSelectByDate(tableName,date)
+	query := generateSelectByDate(insuredIfaceObj, date)
 	rows, err := tx.QueryContext(ctx, query, id)
 	if err != nil {
 		fmt.Println("bad query")
-		return map[int]entity.Record{}, fmt.Errorf("Query failed")
+		return nil, fmt.Errorf("Query failed")
 	}
-	// https://kylewbanks.com/blog/query-result-to-map-in-golang
-	columnNames, err := rows.Columns()
-	fmt.Println(columnNames)
-	recordMap := map[string]string{}
-	//m := make(map[string]interface{})
-	dbRecords := make(map[int]map[string]interface{})
-	i := 0
-	for rows.Next() {
-		columns := make([]interface{}, len(columnNames))
-		columnPointers := make([]interface{}, len(columnNames))
-		for i := range columns {
-			columnPointers[i] = &columns[i]
-		}
-		// Scan result into the pointers
-		if err := rows.Scan(columnPointers...); err != nil {
-			return map[int]entity.Record{}, err
-		}
-		// Make map, get value for each column
-		m := make(map[string]interface{})
-		for i, colName := range columnNames {
-			val := columnPointers[i].(*interface{})
-			m[colName] = *val
-		}
-		dbRecords[i] = m
-		i++
-	}
-	fmt.Println(recordMap)
-	if err := rows.Err(); err != nil {
-		return map[int]entity.Record{}, err
-	}
+	scanRows(ctx, insuredIfaceObj, rows)
 
-	records = map[int]entity.Record{}
 	//complexRecord := entity.Record{}
+	i = 0
 	for _, n := range dbRecords {
 		// convert to string map
 		data := make(map[string]string)
@@ -402,13 +429,14 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 		}
 		recordId, err := strconv.Atoi(data["id"])
 		if err != nil {
-			return map[int]entity.Record{}, FormatError(ErrRecordIDInvalid)
+			return nil, FormatError(ErrRecordIDInvalid)
 		}
 		record := entity.Record{
 			ID:   recordId,
 			Data: data,
 		}
-		records[recordId] = record
+		records[i] = &entity.Insured{}
+		i++
 	}
 
 	fmt.Println(records)
@@ -416,10 +444,12 @@ func (db *DB) GetByDate(ctx context.Context, tableName string, naturalKey string
 	return records, nil
 }
 
-func generateSelectByDate(resourceName string, date time.Time) (query string) {
+func generateSelectByDate(insuredIfaceObj entity.InsuredInterface, date time.Time) (query string) {
 	timestamp := date.Unix()
 	query = ""
-	if resourceName == "employee" {
+	switch insuredObj := insuredIfaceObj.(type) {
+	case *entity.Employee:
+		fmt.Println("Had to use variable, sorry", insuredObj)
 		query = `SELECT t3.employee_id as id, t3.id AS record_id, t2.insured_id, t3.name, t3.employee_id, t3.start_date, t3.end_date, t3.record_timestamp, MAX(t3.record_timestamp) as max_timestamp` + "\n" +
 			`FROM insured t1` + "\n" +
 			`JOIN employees t2 ON t1.id = t2.insured_id` + "\n" +
@@ -427,14 +457,14 @@ func generateSelectByDate(resourceName string, date time.Time) (query string) {
 			`WHERE t3.record_timestamp <= ` + strconv.Itoa(int(timestamp)) + "\n" +
 			`AND t1.id = ?` + "\n" +
 			`GROUP BY insured_id, t2.id`
-	} else if resourceName == "insured" {
+	case *entity.Insured:
 		query = `SELECT t2.*, MAX(t2.record_timestamp) as max_timestamp` + "\n" +
 			`FROM insured t1` + "\n" +
 			`JOIN insured_addresses_records t2 ON t1.id = t2.insured_id` + "\n" +
 			`WHERE t2.record_timestamp <= ` + strconv.Itoa(int(timestamp)) + "\n" +
 			`AND t1.id = ?` + "\n" +
 			`GROUP BY insured_id`
-	} else if resourceName == "address" {
+	case *entity.Address:
 		query = `SELECT t2.*, MAX(t2.record_timestamp) as max_timestamp` + "\n" +
 			`FROM insured_addresses_records t2` + "\n" +
 			`WHERE t2.record_timestamp <= ` + strconv.Itoa(int(timestamp)) + "\n" +
