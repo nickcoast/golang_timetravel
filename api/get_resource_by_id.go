@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/nickcoast/timetravel/entity"
 )
 
 // API V2
@@ -13,9 +14,7 @@ import (
 // GetInsureds retrieves the record.
 func (a *API) GetResourceById(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	requestType := mux.Vars(r)["type"]
-
-	resource, err := resourceNameFromSynonym(requestType)
+	insuredObject, err := a.NewInsuredObjectFromRequest(r)		
 	if err != nil {
 		err := writeError(w, err.Error(), http.StatusBadRequest)
 		logError(err)
@@ -23,8 +22,6 @@ func (a *API) GetResourceById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := mux.Vars(r)["id"]
-	fmt.Println("api.GetInsuredsById id:", id)
-	fmt.Println("api.GetInsuredsById resource:", resource)
 	idNumber, err := strconv.ParseInt(id, 10, 32)
 	if err != nil || idNumber <= 0 {
 		err := writeError(w, "invalid id; id must be a positive number", http.StatusBadRequest)
@@ -34,13 +31,25 @@ func (a *API) GetResourceById(w http.ResponseWriter, r *http.Request) {
 
 	record, err := a.sqlite.GetResourceById(
 		ctx,
-		resource,
-		int(idNumber),
+		insuredObject,
+		int(idNumber), // TODO: get id from insuredObject
 	)
 	if err != nil {
 		err := writeError(w, fmt.Sprintf("record of id %v does not exist", idNumber), http.StatusBadRequest)
 		logError(err)
 		return
+	}
+	insured, ok := record.(*entity.Insured)
+	if ok { // trying to handle nil pointer
+		if insured.Addresses == nil {
+			var Addresses map[int]entity.Address
+			//insured.Addresses = map[int]entity.Address{}
+			insured.Addresses = &Addresses
+		}
+		if insured.Employees == nil {
+			var Employees map[int]entity.Employee
+			insured.Employees = &Employees
+		}
 	}
 
 	err = writeJSON(w, record, http.StatusOK)

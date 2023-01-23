@@ -16,34 +16,30 @@ import (
 // if the record doesn't exist, the record is created.
 // note "Record" is used here but its for the "sqlite" service that currently acts on Insureds only
 func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
-	requestType := mux.Vars(r)["type"]
-	fmt.Println("DELETE")
-	ctx := r.Context()
-	id := mux.Vars(r)["id"]	
-	idNumber, err := strconv.ParseInt(id, 10, 32)
 
-	resource, err := resourceNameFromSynonym(requestType)
+	insuredObject, err := a.NewInsuredObjectFromRequest(r)		
 	if err != nil {
 		err := writeError(w, err.Error(), http.StatusBadRequest)
 		logError(err)
 		return
 	}
-
+	ctx := r.Context()
+	id := mux.Vars(r)["id"]	
+	idNumber, err := strconv.ParseInt(id, 10, 32)
 	// first retrieve the record
-	_, err = a.sqlite.GetResourceById(
+	record, err := a.sqlite.GetResourceById( // This is also done by DB with deleted, err := db.GetById(ctx, tableName, id)
 		ctx,
-		resource,
+		insuredObject, // TODO: change to InsuredInterface
 		int(idNumber),
 	)
-
+	
 	if errors.Is(err, service.ErrRecordDoesNotExist) { // record exists
-		err = writeError(w, "Cannot delete. Record does not exist.", http.StatusBadRequest)
+		err = writeError(w, "Cannot delete. Record does not exist.", http.StatusNotFound)
 		fmt.Println("Yikes")
 		return
 	}
-	
-	/* this API response can give the user a chance to "undo" by sumbitting this data as a new record */
-	deletedRecord, err := a.sqlite.DeleteResource(ctx, resource, idNumber)
+
+	deletedRecord, err := a.sqlite.DeleteResource(ctx, record, idNumber)
 	if err != nil {
 		err := writeError(w, "Bad request or server error", http.StatusBadRequest)
 		logError(err)
@@ -51,6 +47,7 @@ func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = writeJSON(w, deletedRecord, http.StatusOK)
+	
 	logError(err)
 	return
 }

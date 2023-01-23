@@ -131,3 +131,24 @@ func (a *API) updateOrCreate(w http.ResponseWriter, r *http.Request, uOrC update
 	}
 
 }
+
+func (a *API) NewInsuredObjectFromRequest(r *http.Request) (insuredType entity.InsuredInterface, err error) {
+	// TODO: see if this works better https://refactoring.guru/design-patterns/factory-method/go/example
+	requestType := mux.Vars(r)["type"]
+	resource, err := resourceNameFromSynonym(requestType)
+	if err != nil {
+		return nil, err
+	}
+	var insuredObject entity.InsuredInterface
+	insuredObject, err = entity.GetEntity(resource)
+	if err != nil {
+		return nil, err
+	}
+
+	// fatal error panic with DELETE request, perhaps because body does not have anything in it?
+	//err = json.NewDecoder(r.Body).Decode(&insuredObject)
+	if err != nil {
+		return nil, fmt.Errorf("invalid input; could not parse json")
+	}
+	return insuredObject, nil
+}

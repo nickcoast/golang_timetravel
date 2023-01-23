@@ -84,6 +84,18 @@ type InsuredUpdate struct {
 	PolicyNumber *int    `json:"policyNumber"`
 }
 
+func GetEntity(entityType string) (InsuredInterface, error) {
+	// https://refactoring.guru/design-patterns/factory-method/go/example
+	if entityType == "insured" || entityType == "Insured" {
+		return &Insured{}, nil
+	} else if entityType == "employee" || entityType == "Employee" {
+		return &Employee{}, nil
+	} else if entityType == "address" || entityType == "Address" {
+		return &Address{}, nil
+	}
+	return nil, fmt.Errorf("Non-existent entity type %v", entityType)
+}
+
 func (e *Insured) ToRecord() Record {
 	idString := strconv.Itoa(e.ID)
 	r := Record{
@@ -127,7 +139,17 @@ func InsuredsFromRecords(records map[int]Record) (map[int]Insured, error) {
 }
 
 func (i Insured) MarshalJSON() ([]byte, error) {
-	fmt.Println("MARSHHHHHHHHHHHHHHHHHHH")
+	fmt.Println("MARSHHHHHHHHHHHHHHHHHHH")	
+	if i.Employees == nil {
+		e := make(map[int]Employee)
+		e[0] = Employee{}
+		i.Employees = &e
+	}
+	if i.Addresses == nil {
+		a := make(map[int]Address)
+		a[0] = Address{}
+		i.Addresses = &a
+	}
 	return json.Marshal(&struct {
 		ID              string           `json:"id"`
 		Name            string           `json:"name"`

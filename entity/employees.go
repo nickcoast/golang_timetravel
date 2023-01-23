@@ -176,8 +176,14 @@ func EmployeesFromRecords(records map[int]Record) (map[int]Employee, error) {
 	return employeees, nil
 }
 
-func (e Employee) MarshalJSON() ([]byte, error) {
-	fmt.Println("MARSHHHHHHHHHHHHHHHHHHH")
+func (e Employee) MarshalJSON() ([]byte, error) {	
+	if e.ID == 0 {
+		return json.Marshal(&struct {
+			ID	string `json:"id"`
+		}{
+			ID:	"",
+		})
+	}
 	endDate := e.EndDate.Format("2006-01-02")
 	if endDate == "0001-01-01" {
 		endDate = ""

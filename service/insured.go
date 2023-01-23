@@ -18,7 +18,7 @@ import (
 type ObjectResourceService interface {
 
 	// GetResource will retrieve an resource.
-	GetResourceById(ctx context.Context, resource string, id int) (entity.Record, error) // TODO: change resource from string to Struct
+	GetResourceById(ctx context.Context, resource entity.InsuredInterface, id int) (entity.InsuredInterface, error) // TODO: change resource from string to Struct
 	//GetResourceById(ctx context.Context, insuredType entity.InsuredInterface, id int64) (entity.InsuredInterface, error) // TODO: change resource from string to Struct
 
 	// CreateResource will insert a new resource.
@@ -32,11 +32,11 @@ type ObjectResourceService interface {
 	//
 	// UpdateResource will error if id <= 0 or the resource does not exist with that id.
 
-	UpdateResource(ctx context.Context, resource string, record entity.Record) (entity.Record, error)	
+	UpdateResource(ctx context.Context, resource string, record entity.Record) (entity.Record, error)
 	//UpdateResource(ctx context.Context, insuredType entity.InsuredInterface) ( entity.InsuredInterface, error)
 
-	DeleteResource(ctx context.Context, resource string, id int64) (entity.Record, error)
-	//DeleteResource(ctx context.Context, insuredType entity.InsuredInterface, id int64) (entity.InsuredInterface, error)
+	//DeleteResource(ctx context.Context, resource string, id int64) (entity.Record, error)
+	DeleteResource(ctx context.Context, insuredType entity.InsuredInterface, id int64) (entity.InsuredInterface, error)
 
 	GetResourceByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, date time.Time) (records entity.Record, err error)
 	//GetResourceByDate(ctx context.Context, insuredType entity.InsuredInterface, date time.Time) (entity.InsuredInterface, error)
@@ -108,44 +108,33 @@ func (s *SqliteRecordService) UpdateResource(ctx context.Context, resource strin
 	return updateRecord, ErrRecordAlreadyExists
 }
 
-func (s *SqliteRecordService) GetResourceById(ctx context.Context, resource string, id int) (entity.Record, error) {
+func (s *SqliteRecordService) GetResourceById(ctx context.Context, resource entity.InsuredInterface, id int) (entity.InsuredInterface, error) {
 	if id == 0 {
-		return entity.Record{}, ErrRecordDoesNotExist
+		return nil, ErrRecordDoesNotExist
 	}
-	if resource == "employee" { // TODO: DELETE
-		resource = "employees"
+	e, err := s.service.Db.GetById(ctx, resource, int64(id))
+	if err != nil || e.GetId() == 0 {
+		return nil, ErrRecordDoesNotExist
 	}
-	id64 := int64(id)
-	e, err := s.service.Db.GetById(ctx, resource, id64)
-	if err != nil || e.ID == 0 {
-		return entity.Record{}, ErrRecordDoesNotExist
-	}
-	ed := e.DataVal("end_date") // check "empty" end date
+	// TODO: make sure Marshal handles this if needed
+	/* ed := e.DataVal("end_date") // check "empty" end date
 	if ed != "" && ed == "0001-01-01" {
 		if ed == "0001-01-01" {
 			e.Data["end_date"] = "None"
 		}
-	}
-	fmt.Println("service.SqliteRecordService.GetById: Data", e.Data, "requested id", e.ID)
+	} */
 
 	return e, nil
 }
 
-func (s *SqliteRecordService) DeleteResource(ctx context.Context, resource string, id int64) (record entity.Record, err error) {
+func (s *SqliteRecordService) DeleteResource(ctx context.Context, insuredObj entity.InsuredInterface, id int64) (record entity.InsuredInterface, err error) {
 	if id == 0 {
 		return record, ErrRecordDoesNotExist
 	}
-	if resource == "employee" {
-		resource = "employees"
-	}
-	if resource == "address" {
-		resource = "insured_addresses"
-	}
-	record, err = s.service.Db.DeleteById(ctx, resource, id)
+	record, err = s.service.Db.DeleteById(ctx, insuredObj, id)
 	if err != nil {
 		return record, ErrRecordDoesNotExist
 	}
-	fmt.Print("Deleted ", resource, " with id:", id)
 	return record, nil
 }
 

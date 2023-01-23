@@ -29,13 +29,16 @@ func (s *SqliteRecordService) createAddress(ctx context.Context, timestamp time.
 		fmt.Println("ii", ii)
 		return newRecord, fmt.Errorf("Insured ID required to create Address: %v", err)
 	}
-	insuredRecord, err := s.GetResourceById(ctx, "insured", address.InsuredId)
+	insuredIfaceObj, err := s.GetResourceById(ctx, &entity.Insured{}, address.InsuredId)
 	if err != nil {
 		return newRecord, ErrNonexistentParentRecord
 	}
-	insured := entity.Insured{}
-	insured.FromRecord(insuredRecord)
-	addressCount, err := s.service.CountInsuredAddresses(ctx, insured)
+	insuredObj, ok := insuredIfaceObj.(*entity.Insured)
+	if !ok {
+		fmt.Println("Failed type assertion to entity.Insured")
+		return newRecord, ErrServerError
+	}
+	addressCount, err := s.service.CountInsuredAddresses(ctx, *insuredObj)
 	if err != nil {
 		return newRecord, ErrServerError
 	}
@@ -68,13 +71,16 @@ func (s *SqliteRecordService) updateAddress(ctx context.Context, timestamp time.
 		return newRecord, fmt.Errorf("Insured ID required to create Address: %v", err)
 	}
 
-	insuredRecord, err := s.GetResourceById(ctx, "insured", address.InsuredId)
+	insuredIfaceObj, err := s.GetResourceById(ctx, &entity.Insured{}, address.InsuredId)
 	if err != nil {
 		return newRecord, ErrRecordIDInvalid
 	}
-	insured := entity.Insured{}
-	insured.FromRecord(insuredRecord)
-	addressCount, err := s.service.CountInsuredAddresses(ctx, insured)
+	insuredObj, ok := insuredIfaceObj.(*entity.Insured)
+	if !ok {
+		fmt.Println("Failed type assertion to entity.Insured")
+		return entity.Record{}, ErrServerError
+	}
+	addressCount, err := s.service.CountInsuredAddresses(ctx, *insuredObj)
 	if err != nil {
 		return newRecord, ErrServerError
 	}
