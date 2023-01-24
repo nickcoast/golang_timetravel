@@ -376,8 +376,6 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 	}
 	defer tx.Rollback()
 
-	fmt.Println("sqlite DB.GetInsuredByDate")
-
 	insuredIfaceObj, err := db.GetById(ctx, &entity.Insured{}, insuredId)
 	if err != nil {
 		return entity.Insured{}, FormatError(err)

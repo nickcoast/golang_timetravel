@@ -56,7 +56,7 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 			logError(errInWriting)
 			return
 		} else if err.Error() == service.ErrNonexistentParentRecord.Error() {
-			errInWriting := writeError(w, err.Error(), http.StatusBadRequest)
+			errInWriting := writeError(w, err.Error(), http.StatusConflict)
 			logError(err)
 			logError(errInWriting)
 			return

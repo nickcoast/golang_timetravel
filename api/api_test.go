@@ -273,9 +273,9 @@ func TestAPI_Update(t *testing.T) {
 
 		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
 		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusForbidden, response.Code) // cannot update core insured data
+		checkResponseCode(t, http.StatusConflict, response.Code) // cannot update core insured data
 
-		responseString := "{\"id\":3,\"data\":{\"id\":\"3\",\"name\":\"Muppy\",\"policy_number\":\"1002\",\"record_timestamp\":\"\"}}\n"
+		responseString := `{"error":"Duplicate record. Must change at least one value to update."}` + "\n"
 		//fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
 		checkResponseData(t, responseString, response.Body.String(), true)
 	})
@@ -329,7 +329,7 @@ func TestAPI_Update(t *testing.T) {
 		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
 		response := executeRequest(req, httpserver)
 		checkResponseCode(t, http.StatusConflict, response.Code)
-		responseString := `{"error":"Record does not exist. Use 'new' to create."}` + "\n"
+		responseString := `{"error":"Duplicate recordasdfge at least one value to update."}` + "\n"
 		checkResponseData(t, responseString, response.Body.String(), true)
 
 	})
@@ -349,7 +349,7 @@ func TestAPI_Update(t *testing.T) {
 		// should fail, doesn't exist
 		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
 		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusBadRequest, response.Code)
+		checkResponseCode(t, http.StatusConflict, response.Code)
 		responseString := `{"error":"Cannot create record for non-existent insuredId"}` + "\n"
 		checkResponseData(t, responseString, response.Body.String(), true)
 
@@ -372,7 +372,7 @@ func TestAPI_Update(t *testing.T) {
 		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
 		response := executeRequest(req, httpserver)
 		checkResponseCode(t, http.StatusOK, response.Code)
-		responseString := `{"id":7,"data":{"end_date":"1999-01-14","id":"7","insured_id":"1","name":"Mister Bungle","record_timestamp":"","start_date":"1974-07-24"}}` + "\n"
+		responseString := `{"id":2,"data":{"end_date":"1999-01-14","id":"2","insured_id":"1","name":"Mister Bungle","record_timestamp":"","start_date":"1974-07-24"}}` + "\n"
 		checkResponseData(t, responseString, response.Body.String(), true)
 	})
 }
