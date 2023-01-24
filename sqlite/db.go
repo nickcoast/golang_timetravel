@@ -203,7 +203,9 @@ func (db *DB) GetInsuredById(ctx context.Context, insured entity.Insured, id int
 	if err := rows.Err(); err != nil {
 		return &entity.Insured{}, fmt.Errorf("rowsErr: %v", err)
 	}
-
+	if insured.ID == 0 {
+		return &entity.Insured{}, ErrRecordDoesNotExist
+	}
 	tx.Commit()
 	return &insured, err
 }
@@ -281,7 +283,7 @@ func scanRows(ctx context.Context, insuredIfaceObj entity.InsuredInterface, rows
 		}
 	case *entity.Address:
 		var garbage int
-		i := 0		
+		i := 0
 		for rows.Next() {
 			address := entity.Address{}
 			if err := rows.Scan(
@@ -375,6 +377,17 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 
 	fmt.Println("sqlite DB.GetInsuredByDate")
 
+	insuredIfaceObj, err := db.GetById(ctx, &entity.Insured{}, insuredId)
+	if err != nil {
+		return entity.Insured{}, FormatError(err)
+	}
+	insuredObj, ok := insuredIfaceObj.(*entity.Insured)
+	if !ok {
+		return entity.Insured{}, fmt.Errorf("Internal Server Error")
+	}
+	if insuredObj.ID == 0 {
+		return entity.Insured{}, ErrRecordDoesNotExist
+	}
 	employeeRecords, err := db.GetByDate(ctx, &entity.Employee{}, "naturalkey", insuredId, date)
 	if err != nil {
 		return entity.Insured{}, FormatError(err)
@@ -383,17 +396,10 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 	if err != nil {
 		return entity.Insured{}, FormatError(err)
 	}
-	insuredIfaceObj, err := db.GetById(ctx, &entity.Insured{}, insuredId)
-	if err != nil {
-		return entity.Insured{}, FormatError(err)
-	}
+
 	employees, err := entity.EmployeesFromInsuredInterface(employeeRecords)
 	addresses, err := entity.AddressesFromInsuredInterface(addressRecords)
 
-	insuredObj, ok := insuredIfaceObj.(*entity.Insured)
-	if !ok {
-		return entity.Insured{}, fmt.Errorf("Internal Server Error")
-	}
 	insuredObj.Employees = &employees
 	insuredObj.Addresses = &addresses
 
@@ -426,7 +432,6 @@ func (db *DB) GetByDate(ctx context.Context, insuredIfaceObj entity.InsuredInter
 		fmt.Println("bad query")
 		return records, fmt.Errorf("Query failed")
 	}
-	
 
 	records, err = scanRows(ctx, insuredIfaceObj, rows)
 	if err != nil {
@@ -439,7 +444,7 @@ func (db *DB) GetByDate(ctx context.Context, insuredIfaceObj entity.InsuredInter
 
 func (db *DB) CountInsuredRecordsAtDate(ctx context.Context, tx *sql.Tx, insuredIfaceObj entity.InsuredInterface, insuredId int64, date time.Time) (int, error) {
 	count := 0
-	query := generateSelectByDate(insuredIfaceObj, date)	
+	query := generateSelectByDate(insuredIfaceObj, date)
 	var re = regexp.MustCompile(`^(SELECT )(.*as max_timestamp)`)
 	query = re.ReplaceAllString(query, `${1}count(*) as count`)
 	re = regexp.MustCompile(`(?m:GROUP BY insured_id, t2\.id)$`)
@@ -447,7 +452,7 @@ func (db *DB) CountInsuredRecordsAtDate(ctx context.Context, tx *sql.Tx, insured
 	err := tx.QueryRowContext(ctx, query, insuredId).Scan(&count)
 	if err != nil {
 		return 0, err
-	}	
+	}
 	return count, nil
 }
 
