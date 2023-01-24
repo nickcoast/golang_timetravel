@@ -41,7 +41,7 @@ func (u *Employee) GetIdentTableName() string {
 }
 func (u *Employee) GetInsertFields() map[string]string {
 	return map[string]string{
-		"name": u.Name,
+		"name":       u.Name,
 		"start_date": u.StartDate.Format("2006-01-02"),
 		"end_date":   u.EndDate.Format("2006-01-02"),
 	}
@@ -102,7 +102,7 @@ type EmployeeUpdate struct {
 }
 
 // EndDate is optional
-func NewEmployee(name string, startDate string, endDate string, insuredId int, recordTimestamp string) (employee *Employee, err error) {
+func NewEmployee(employeeID int, name string, startDate string, endDate string, insuredId int, recordTimestamp string) (employee *Employee, err error) {
 	if len(name) == 0 {
 		return employee, fmt.Errorf("Name must be at least 1 character long")
 	}
@@ -124,6 +124,7 @@ func NewEmployee(name string, startDate string, endDate string, insuredId int, r
 	}
 	fmt.Println("STUFFFFFFFFFFFFFFF", name, start, end, insuredId, timestamp)
 	employee = &Employee{
+		ID:              employeeID,
 		Name:            name,
 		StartDate:       start,
 		EndDate:         end,
@@ -177,7 +178,7 @@ func EmployeesFromRecords(records map[int]Record) (map[int]Employee, error) {
 }
 
 // Returns Employee map. Skips any non-employees
-func EmployeesFromInsuredInterface( insuredIfaceObjs map[int]InsuredInterface) (map[int]Employee, error) {
+func EmployeesFromInsuredInterface(insuredIfaceObjs map[int]InsuredInterface) (map[int]Employee, error) {
 	employees := make(map[int]Employee)
 	for i, obj := range insuredIfaceObjs {
 		e, ok := obj.(*Employee)
@@ -188,12 +189,12 @@ func EmployeesFromInsuredInterface( insuredIfaceObjs map[int]InsuredInterface) (
 	return employees, nil
 }
 
-func (e Employee) MarshalJSON() ([]byte, error) {	
+func (e Employee) MarshalJSON() ([]byte, error) {
 	if e.ID == 0 {
 		return json.Marshal(&struct {
-			ID	string `json:"id"`
+			ID string `json:"id"`
 		}{
-			ID:	"",
+			ID: "",
 		})
 	}
 	endDate := e.EndDate.Format("2006-01-02")

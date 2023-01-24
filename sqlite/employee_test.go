@@ -224,11 +224,11 @@ func TestInsuredService_CountEmployees(t *testing.T) {
 	}
 	MustCreateInsured(t, ctx, db, insured)
 
-	employee1, err := entity.NewEmployee("Billy", "2001-01-01", "2002-01-01", insured.ID, "2006-01-02 12:00:00")
+	employee1, err := entity.NewEmployee(0, "Billy", "2001-01-01", "2002-01-01", insured.ID, "2006-01-02 12:00:00")
 	if err != nil {
 		t.Fatalf("Failed to create employee. %v - Error: %v", employee1, err)
 	}
-	employee2, err := entity.NewEmployee("Billy", "2001-01-01", "2002-06-01", insured.ID, "2006-06-02 12:00:00")
+	employee2, err := entity.NewEmployee(0, "Billy", "2001-01-01", "2002-06-01", insured.ID, "2006-06-02 12:00:00")
 	if err != nil {
 		t.Fatalf("Failed to create employee. %v - Error: %v", employee2, err)
 	}
@@ -248,7 +248,7 @@ func TestInsuredService_CountEmployees(t *testing.T) {
 	t.Run("Fail if exists", func(t *testing.T) {
 
 		// exact duplicate
-		employee3, err := entity.NewEmployee("Billy", "2001-01-01", "2002-01-01", insured.ID, "2006-01-02 12:00:00")
+		employee3, err := entity.NewEmployee(0, "Billy", "2001-01-01", "2002-01-01", insured.ID, "2006-01-02 12:00:00")
 		MustCreateEmployee(t, ctx, db, employee3)
 		if err != nil {
 			t.Fatalf("Failed to create employee. %v - Error: %v", employee1, err)

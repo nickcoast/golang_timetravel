@@ -49,6 +49,12 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 	newRecord, err := a.sqlite.CreateResource(ctx, resource, requestRecord)
 
 	if err != nil {
+		if err.Error() == entity.ErrRecordAlreadyExists {
+			errInWriting := writeError(w, err.Error(), http.StatusConflict)
+			logError(err)
+			logError(errInWriting)
+			return
+		}
 		errInWriting := writeError(w, err.Error(), http.StatusInternalServerError)
 		logError(err)
 		logError(errInWriting)
@@ -56,6 +62,6 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Println("newRecord", newRecord)
-	err = writeJSON(w, newRecord, http.StatusOK)
+	err = writeJSON(w, newRecord, http.StatusCreated)
 	logError(err)
 }

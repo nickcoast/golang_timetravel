@@ -63,6 +63,7 @@ var ErrRecordDoesNotExist = errors.New("record with that id does not exist")
 var ErrRecordIDInvalid = errors.New("record id must >= 0")
 var ErrRecordAlreadyExists = errors.New("record already exists")
 var ErrRecordMatchingCriteriaDoesNotExist = errors.New("no records matched your search")
+var ErrUpdateMustChangeAValue = errors.New("update must modify at least one value")
 
 func (db *DB) Open() (err error) { // need ctx here or not?
 

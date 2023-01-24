@@ -11,6 +11,7 @@ import (
 	"github.com/nickcoast/timetravel/entity"
 )
 
+
 // Create new employee *record*. Used for creating new employee, and for updating
 func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Employee) (record entity.Record, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
@@ -31,7 +32,6 @@ func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Em
 		return record, err
 	}
 	if err = tx.Commit(); err != nil {
-		fmt.Println("jkl")
 		return record, err
 	}
 	return record, nil
@@ -43,21 +43,15 @@ func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (rec
 	if err := employee.Validate(); err != nil {
 		return record, err
 	}
+	identTable := employee.GetIdentTableName()
 	result, err := tx.ExecContext(ctx, `
-		INSERT INTO employees (
-			name,
-			start_date,
-			end_date,
-			insured_id,		
-			record_timestamp		
+		INSERT INTO `+identTable+` (			
+			insured_id			
 		)
-		VALUES (?, ?, ?, ?, ?)
+		VALUES (?)
 	`,
-		employee.Name,
-		employee.StartDate.Format("2006-01-02"),
-		employee.EndDate.Format("2006-01-02"),
 		employee.InsuredId,
-		employee.RecordTimestamp.Unix(), // can use a Scan method here if necessary
+		
 	)
 	if err != nil {
 		return record, FormatError(err)
@@ -66,6 +60,23 @@ func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (rec
 	if err != nil {
 		return record, err
 	}
+	dataTable := employee.GetDataTableName()
+	result, err = tx.ExecContext(ctx, `
+		INSERT INTO `+dataTable+` (
+			employee_id,
+			name,
+			start_date,
+			end_date,
+			record_timestamp	
+		)
+		VALUES (?, ?, ?, ?, ?)
+	`,
+		id,
+		employee.Name,
+		employee.StartDate.Format("2006-01-02"),
+		employee.EndDate.Format("2006-01-02"),
+		employee.RecordTimestamp.Unix(), // can use a Scan method here if necessary
+	)
 	employee.ID = int(id)
 	record = employee.ToRecord()
 	return record, nil
@@ -82,9 +93,20 @@ func (s *InsuredService) UpdateEmployee(ctx context.Context, employee *entity.Em
 	if err != nil {
 		return entity.Record{}, err
 	}
-	if count != 0 {
+	if count == 0 { // TODO: if change to count != 0, API receives no response? check
 		return entity.Record{}, fmt.Errorf("Employee '%v' for Insured ID '%v' does not exist. Use 'new' to update it.", employee.Name, employee.InsuredId)
 	}
+
+	currentRecord, err := s.Db.GetEmployeeById(ctx, *employee, int64(employee.ID))
+	if err != nil {
+		return record, err
+	}	
+
+	if (currentRecord.Name == employee.Name &&
+		currentRecord.StartDate == employee.StartDate &&
+		currentRecord.EndDate == employee.EndDate) {
+			return record, ErrUpdateMustChangeAValue
+		}
 
 	// Update an employee record
 	record, err = updateEmployee(ctx, tx, employee)
@@ -92,8 +114,7 @@ func (s *InsuredService) UpdateEmployee(ctx context.Context, employee *entity.Em
 	if err != nil && err.Error() == "UNIQUE constraint failed: employees.insured_id, employees.name, employees.start_date, employees.end_date" {
 		fmt.Println("Duplicate key error. Insert failed.")
 		return record, ErrRecordAlreadyExists
-	}
-	if err != nil { // any other error
+	} else if err != nil { // any other error
 		return record, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -108,30 +129,31 @@ func updateEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (rec
 	if err := employee.Validate(); err != nil {
 		return record, err
 	}
+	dataTable := employee.GetDataTableName()
 	result, err := tx.ExecContext(ctx, `
-		INSERT INTO employees (
+		INSERT INTO ` + dataTable + ` (
+			employee_id,
 			name,
 			start_date,
 			end_date,
-			insured_id,		
 			record_timestamp		
 		)
 		VALUES (?, ?, ?, ?, ?)
 	`,
+		employee.ID,
 		employee.Name,
 		employee.StartDate.Format("2006-01-02"),
 		employee.EndDate.Format("2006-01-02"),
-		employee.InsuredId,
 		employee.RecordTimestamp.Unix(), // can use a Scan method here if necessary
 	)
 	if err != nil {
 		return record, FormatError(err)
 	}
-	id, err := result.LastInsertId()
+	_, err = result.LastInsertId() // record id
 	if err != nil {
 		return record, err
 	}
-	employee.ID = int(id)
+	//employee.RecordId = int(id)
 	record = employee.ToRecord()
 	return record, nil
 }

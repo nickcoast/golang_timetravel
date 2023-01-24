@@ -88,7 +88,7 @@ func (s *SqliteRecordService) updateAddress(ctx context.Context, timestamp time.
 		return newRecord, ErrRecordDoesNotExist
 	}
 
-	newRecord, err = s.service.CreateAddress(ctx, address) // add record to DB indicating an address change
+	newRecord, err = s.service.UpdateAddress(ctx, address) // add record to DB indicating an address change
 	if err != nil {
 		return entity.Record{}, err
 	}

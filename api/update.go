@@ -49,21 +49,28 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("api.UpdateInsured requestRecord:", requestRecord)
 	newRecord, err := a.sqlite.UpdateResource(ctx, resource, requestRecord)
 
-	if err != nil && err.Error() == service.ErrRecordDoesNotExist.Error() {
-		errInWriting := writeError(w, err.Error(), http.StatusBadRequest)
-		logError(err)
-		logError(errInWriting)
-		return
-	} else if err != nil {
-		errInWriting := writeError(w, "Duplicate record. Must change at least one value to update.", http.StatusBadRequest)
-		logError(err)
-		logError(errInWriting)
-		return
-	} else if err != nil {
-		errInWriting := writeError(w, ErrInternal.Error(), http.StatusInternalServerError)
-		logError(err)
-		logError(errInWriting)
-		return
+	if err != nil {
+		if err.Error() == service.ErrRecordDoesNotExist.Error() {
+			errInWriting := writeError(w, err.Error(), http.StatusConflict)
+			logError(err)
+			logError(errInWriting)
+			return
+		} else if err.Error() == service.ErrNonexistentParentRecord.Error() {
+			errInWriting := writeError(w, err.Error(), http.StatusBadRequest)
+			logError(err)
+			logError(errInWriting)
+			return
+		} else if err != nil { // fix/test
+			errInWriting := writeError(w, "Duplicate record. Must change at least one value to update.", http.StatusConflict)
+			logError(err)
+			logError(errInWriting)
+			return
+		} else if err != nil { // delete one of these nil condition checks
+			errInWriting := writeError(w, ErrInternal.Error(), http.StatusInternalServerError)
+			logError(err)
+			logError(errInWriting)
+			return
+		}
 	}
 
 	fmt.Println("newRecord", newRecord)
