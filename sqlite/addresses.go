@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/nickcoast/timetravel/entity"
 )
@@ -95,17 +96,20 @@ func (s *InsuredService) UpdateAddress(ctx context.Context, address *entity.Addr
 	}
 	defer tx.Rollback()
 
-	insured := &entity.Insured{}
-	insured, err = s.Db.GetInsuredById(ctx, *insured, int64(address.InsuredId))
+	insured := entity.Insured{}
+	date := time.Now()
+	insured, err = s.Db.GetInsuredByDate(ctx, int64(address.InsuredId), date)
 
-	count, err := s.CountInsuredAddresses(ctx, *insured)
+	count, err := s.CountInsuredAddresses(ctx, insured)
 	if count == 0 {
 		return record, ErrRecordAlreadyExists
 	}
 
-	existingAddress, err := s.Db.GetAddressById(ctx, *address, int64(address.ID))
+	currentAddresses := *insured.Addresses
+	currentAddress := currentAddresses[0]
+	//existingAddress, err := s.Db.GetAddressById(ctx, *address, int64(address.ID))
 
-	if existingAddress.Address == address.Address {
+	if address.Address == currentAddress.Address {
 		return record, ErrUpdateMustChangeAValue
 	}
 
