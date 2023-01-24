@@ -100,12 +100,21 @@ func TestAPI_GetByTime(t *testing.T) {
 		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
 		checkResponseData(t, responseString, response.Body.String(), false)
 	})
-	t.Run("TestAPI_GetByTime_Timestamp", func(t *testing.T) { // same date as timestamp 954590400
+	t.Run("TestAPI_GetByTime_Date", func(t *testing.T) { // same date as timestamp 954590400
 		req, _ := http.NewRequest("GET", "/api/v2/insured/getbydate/2/2000-04-01", nil)
 		response := executeRequest(req, httpserver)
 		checkResponseCode(t, http.StatusOK, response.Code)
 
 		responseString := `{"id":"2","name":"John Smith","policy_number":"1001","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC","employees":{"0":{"id":"3","name":"John Smith","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC"},"1":{"id":"4","name":"Jane Doe","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"},"2":{"id":"5","name":"Grant Tombly","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"}},"insuredAddresses":{}}` + "\n"
+		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
+		checkResponseData(t, responseString, response.Body.String(), false)
+	})
+	t.Run("TestAPI_GetByTime_Date_404", func(t *testing.T) { // same date as timestamp 954590400
+		req, _ := http.NewRequest("GET", "/api/v2/insured/getbydate/99/2000-04-01", nil)
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusNotFound, response.Code)
+
+		responseString := `{"error":"No record for Insured 99 and date 2000-04-01 exist"}` + "\n"
 		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
 		checkResponseData(t, responseString, response.Body.String(), false)
 	})
