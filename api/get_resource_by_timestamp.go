@@ -15,7 +15,7 @@ import (
 // Get unique records for this resource valid at this date
 func (a *API) GetResourceByTimestamp(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	insuredObject, err := a.NewInsuredObjectFromRequest(r)		
+	insuredObject, err := a.NewInsuredObjectFromRequest(r)
 	if err != nil {
 		err := writeError(w, err.Error(), http.StatusBadRequest)
 		logError(err)

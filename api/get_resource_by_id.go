@@ -14,7 +14,7 @@ import (
 // GetInsureds retrieves the record.
 func (a *API) GetResourceById(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	insuredObject, err := a.NewInsuredObjectFromRequest(r)		
+	insuredObject, err := a.NewInsuredObjectFromRequest(r)
 	if err != nil {
 		err := writeError(w, err.Error(), http.StatusBadRequest)
 		logError(err)
