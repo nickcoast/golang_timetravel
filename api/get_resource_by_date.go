@@ -32,7 +32,7 @@ func (a *API) GetResourceByDate(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(zone, offset)
 
 	dateTime, err := time.Parse("2006-01-02", date)
-	dateTime = dateTime.Add(time.Hour * 24 - time.Second * time.Duration(offset)) // Set to midnight of system timezone
+	dateTime = dateTime.Add(time.Hour*24 - time.Second*time.Duration(offset)) // Set to midnight of system timezone
 	/* timestamp := dateTime.Unix()
 	fmt.Println(timestamp) */
 	if err != nil {

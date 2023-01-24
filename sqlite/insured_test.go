@@ -261,8 +261,8 @@ func MustCreateInsuredAddresses(tb testing.TB, ctx context.Context, db *sqlite.D
 	tb.Helper()
 	// 1st timestamp same as in employees. 2nd +1 and 3rd -1
 	timestampFirst, _ := time.Parse("2006-01-02 15:04:05", "2022-01-02 15:04:05")
-	timestampSecond := timestampFirst.Add(time.Hour * 24 * 30 +1)
-	timestampThird := timestampSecond.Add(time.Hour * 24 * 30 -1) 
+	timestampSecond := timestampFirst.Add(time.Hour*24*30 + 1)
+	timestampThird := timestampSecond.Add(time.Hour*24*30 - 1)
 	//timestampFourth := timestampThird.Add(time.Hour * 24 * 30)
 
 	addressOrig := "123 Fake Street, Springfield, Oregon"
@@ -270,29 +270,28 @@ func MustCreateInsuredAddresses(tb testing.TB, ctx context.Context, db *sqlite.D
 	addressThird := "Atlantis"
 	addressFourth := "A Van Down By The River"
 	insuredId := insured.ID
-	
+
 	var addresss = []*entity.Address{
 		{
 			Address:         addressOrig,
 			InsuredId:       insuredId,
 			RecordTimestamp: timestampFirst,
 		},
-		{			
-			Address:      	 addressUpdate,			
+		{
+			Address:         addressUpdate,
 			InsuredId:       insuredId,
 			RecordTimestamp: timestampSecond,
 		},
-		{			
-			Address:      	 addressThird,			
+		{
+			Address:         addressThird,
 			InsuredId:       insuredId,
 			RecordTimestamp: timestampThird,
 		},
-		{			
-			Address:       	 addressFourth,			
+		{
+			Address:         addressFourth,
 			InsuredId:       insuredId,
 			RecordTimestamp: timestampFirst.Add(time.Hour * -24),
 		},
-	
 	}
 	for _, e := range addresss {
 		MustCreateAddress(tb, ctx, db, e)

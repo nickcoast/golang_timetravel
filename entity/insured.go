@@ -1,6 +1,6 @@
 package entity
 
-import (	
+import (
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -17,6 +17,7 @@ type Insured struct {
 	Employees       *map[int]Employee
 	Addresses       *map[int]Address
 }
+
 var _ InsuredInterface = (*Insured)(nil)
 
 // InsuredInterface for methods related to Insured objects (Insured, Employee, Address, and collections thereof)
@@ -32,7 +33,7 @@ type InsuredInterface interface {
 	//MultipleFromRecords(records map[int]Record) (map[int]InsuredInterface, error)
 	MarshalJSON() ([]byte, error)
 	GetIdentTableName() string // table name with identity column
-	GetDataTableName() string // table name with values (may be the same as identity)
+	GetDataTableName() string  // table name with values (may be the same as identity)
 	GetInsertFields() map[string]string
 }
 
@@ -58,12 +59,10 @@ func (u *Insured) GetIdentTableName() string {
 }
 func (u *Insured) GetInsertFields() map[string]string {
 	return map[string]string{
-		"name": u.Name,
-		"policy_number":   strconv.Itoa(u.PolicyNumber),
+		"name":          u.Name,
+		"policy_number": strconv.Itoa(u.PolicyNumber),
 	}
 }
-
-
 
 // InsuredFilter represents a filter passed to FindInsureds().
 type InsuredFilter struct {
@@ -139,7 +138,7 @@ func InsuredsFromRecords(records map[int]Record) (map[int]Insured, error) {
 }
 
 func (i Insured) MarshalJSON() ([]byte, error) {
-	fmt.Println("MARSHHHHHHHHHHHHHHHHHHH")	
+	fmt.Println("MARSHHHHHHHHHHHHHHHHHHH")
 	if i.Employees == nil {
 		e := make(map[int]Employee)
 		e[0] = Employee{}

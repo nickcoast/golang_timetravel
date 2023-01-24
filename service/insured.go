@@ -165,7 +165,7 @@ func (s *SqliteRecordService) GetResourceByDate(ctx context.Context, insuredIfac
 		return nil, ErrNonexistentParentRecord
 	}
 
-	record, err := s.service.Db.GetByDate(ctx, insuredIfaceObj , naturalKey, insuredId, dateValid)
+	record, err := s.service.Db.GetByDate(ctx, insuredIfaceObj, naturalKey, insuredId, dateValid)
 	if err != nil {
 		return nil, ErrServerError
 	}

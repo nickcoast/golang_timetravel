@@ -37,7 +37,6 @@ func (u *Address) GetIdentTableName() string {
 func (u *Address) GetInsertFields() map[string]string {
 	return map[string]string{
 		"address": u.Address,
-		
 	}
 }
 
@@ -130,7 +129,7 @@ func AddressesFromRecords(records map[int]Record) (map[int]Address, error) {
 }
 
 // Returns Address map. Skips any non-addresss
-func AddressesFromInsuredInterface( insuredIfaceObjs map[int]InsuredInterface) (map[int]Address, error) {
+func AddressesFromInsuredInterface(insuredIfaceObjs map[int]InsuredInterface) (map[int]Address, error) {
 	addresss := make(map[int]Address)
 	for i, obj := range insuredIfaceObjs {
 		e, ok := obj.(*Address)

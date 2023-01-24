@@ -11,7 +11,6 @@ import (
 	"github.com/nickcoast/timetravel/entity"
 )
 
-
 // Create new employee *record*. Used for creating new employee, and for updating
 func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Employee) (record entity.Record, err error) {
 	tx, err := s.Db.BeginTx(ctx, nil)
@@ -51,7 +50,6 @@ func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (rec
 		VALUES (?)
 	`,
 		employee.InsuredId,
-		
 	)
 	if err != nil {
 		return record, FormatError(err)
@@ -100,13 +98,13 @@ func (s *InsuredService) UpdateEmployee(ctx context.Context, employee *entity.Em
 	currentRecord, err := s.Db.GetEmployeeById(ctx, *employee, int64(employee.ID))
 	if err != nil {
 		return record, err
-	}	
+	}
 
-	if (currentRecord.Name == employee.Name &&
+	if currentRecord.Name == employee.Name &&
 		currentRecord.StartDate == employee.StartDate &&
-		currentRecord.EndDate == employee.EndDate) {
-			return record, ErrUpdateMustChangeAValue
-		}
+		currentRecord.EndDate == employee.EndDate {
+		return record, ErrUpdateMustChangeAValue
+	}
 
 	// Update an employee record
 	record, err = updateEmployee(ctx, tx, employee)
@@ -131,7 +129,7 @@ func updateEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (rec
 	}
 	dataTable := employee.GetDataTableName()
 	result, err := tx.ExecContext(ctx, `
-		INSERT INTO ` + dataTable + ` (
+		INSERT INTO `+dataTable+` (
 			employee_id,
 			name,
 			start_date,
