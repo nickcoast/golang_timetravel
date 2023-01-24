@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	
+
 	"regexp"
 	"strings"
 
@@ -28,7 +28,7 @@ import (
 type APItest struct {
 	db         *sqlite.DB
 	HTTPServer *http.Server
-	tempDir		*string
+	tempDir    *string
 }
 
 /* func TestGetById(t *testing.T) {
@@ -120,8 +120,8 @@ func TestAPI_GetByTime(t *testing.T) {
 	})
 }
 
-func TestAPI_DeleteResourceById(t *testing.T) {
-	t.Run("TestAPI_DeleteResourceById_Insured", func(t *testing.T) {
+func TestAPI_DeleteById(t *testing.T) {
+	t.Run("TestAPI_DeleteById_Insured", func(t *testing.T) {
 		_, httpserver, db := MustOpenDBAndSetUpRoutes(t) // TODO: make so only do this once per set of tests.
 		defer MustCloseDB(t, db)
 		//defer MustCloseDBAndDelete(t, db, )
@@ -144,29 +144,237 @@ func TestAPI_DeleteResourceById(t *testing.T) {
 		checkResponseData(t, responseString, response.Body.String(), false)
 
 	})
+	t.Run("TestAPI_DeleteById_Employee", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t) // TODO: make so only do this once per set of tests.
+		defer MustCloseDB(t, db)
+		//defer MustCloseDBAndDelete(t, db, )
+
+		req, _ := http.NewRequest("DELETE", "/api/v2/employees/delete/2", nil)
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusOK, response.Code)
+
+		responseString := `{"id":"2","name":"Mister Bungle","startDate":"1984-11-10","endDate":"1996-06-01","insuredId":"1","recordTimestamp":"852206400","recordDateTime":"Thu, 02 Jan 1997 12:00:00 UTC"}` + "\n"
+		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
+		checkResponseData(t, responseString, response.Body.String(), false)
+
+		// 2nd request should return 404
+		response = executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusNotFound, response.Code)
+
+		// TODO: return original record with ID set to 0 instead
+		responseString = "{\"error\":\"Cannot delete. Record does not exist.\"}\n"
+		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
+		checkResponseData(t, responseString, response.Body.String(), false)
+
+	})
+	t.Run("TestAPI_DeleteById_Address", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t) // TODO: make so only do this once per set of tests.
+		defer MustCloseDB(t, db)
+		//defer MustCloseDBAndDelete(t, db, )
+
+		req, _ := http.NewRequest("DELETE", "/api/v2/address/delete/2", nil)
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusOK, response.Code)
+
+		responseString := `{"id":"2","address":"123 REAL Street, Springfield, Oregon","recordTimestamp":"469368001","recordDateTime":"Thu, 15 Nov 1984 12:00:01 UTC"}` + "\n"
+		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
+		checkResponseData(t, responseString, response.Body.String(), false)
+
+		// 2nd request should return 404
+		response = executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusNotFound, response.Code)
+
+		// TODO: return original record with ID set to 0 instead
+		responseString = "{\"error\":\"Cannot delete. Record does not exist.\"}\n"
+		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
+		checkResponseData(t, responseString, response.Body.String(), false)
+
+	})
 }
 
-func TestCreateResource(t *testing.T) {
+func TestAPI_Create(t *testing.T) {
 	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
 	defer MustCloseDB(t, db)
 
-	req, _ := http.NewRequest("POST", "/api/v2/insured/new", nil)
-	requestBody, err := json.Marshal(map[string]string{
-		"name": "Muppy",
+	t.Run("TestAPI_Create_Insured", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", "/api/v2/insured/new", nil)
+		requestBody, err := json.Marshal(map[string]string{
+			"name": "Muppy",
+		})
+		if err != nil {
+			t.Errorf("Bad request")
+		}
+
+		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
+
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusCreated, response.Code)
+
+		responseString := "{\"id\":3,\"data\":{\"id\":\"3\",\"name\":\"Muppy\",\"policy_number\":\"1002\",\"record_timestamp\":\"\"}}\n"
+		//fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
+		checkResponseData(t, responseString, response.Body.String(), true)
 	})
-	if err != nil {
-		t.Errorf("Bad request")
-	}
-	//req.Body = requestBody // io.ReadCloser
-	//req.Body =io.NopCloser(strings.NewReader("{\"name\":\"Muppy\"}"))
-	req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
+	t.Run("TestAPI_Create_Address", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", "/api/v2/address/new", nil)
+		requestBody, err := json.Marshal(map[string]string{
+			"address":   "911 Reno Street",
+			"insuredId": "2",
+		})
+		if err != nil {
+			t.Errorf("Bad request")
+		}
 
-	response := executeRequest(req, httpserver)
-	checkResponseCode(t, http.StatusOK, response.Code)
+		// test create new
+		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusCreated, response.Code)
+		responseString := `{"id":5,"data":{"address":"911 Reno Street","id":"5","insured_id":"2","record_timestamp":""}}` + "\n"
+		checkResponseData(t, responseString, response.Body.String(), true)
 
-	responseString := "{\"id\":3,\"data\":{\"id\":\"3\",\"name\":\"Muppy\",\"policy_number\":\"1002\",\"record_timestamp\":\"\"}}\n"
-	fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-	checkResponseData(t, responseString, response.Body.String(), true)
+		// test duplicate error
+		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
+		response = executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusConflict, response.Code)
+		responseString = `{"error":"Record already exists. Use 'update' to update"}` + "\n"
+		checkResponseData(t, responseString, response.Body.String(), true)
+	})
+	t.Run("TestAPI_Create_Employee", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", "/api/v2/employee/new", nil)
+		requestBody, err := json.Marshal(map[string]string{
+			"name":      "Charles Bronson",
+			"startDate": "1974-07-24",
+			"endDate":   "1994-01-14",
+			"insuredId": "2",
+		})
+		if err != nil {
+			t.Errorf("Bad request")
+		}
+
+		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusCreated, response.Code)
+		responseString := `{"id":7,"data":{"end_date":"1994-01-14","id":"7","insured_id":"2","name":"Charles Bronson","record_timestamp":"","start_date":"1974-07-24"}}` + "\n"
+		checkResponseData(t, responseString, response.Body.String(), true)
+	})
+}
+
+func TestAPI_Update(t *testing.T) {
+	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+	defer MustCloseDB(t, db)
+
+	t.Run("TestAPI_Update_Insured", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/v2/insured/update", nil)
+		requestBody, err := json.Marshal(map[string]string{
+			"name": "Muppy",
+		})
+		if err != nil {
+			t.Errorf("Bad request")
+		}
+
+		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusForbidden, response.Code) // cannot update core insured data
+
+		responseString := "{\"id\":3,\"data\":{\"id\":\"3\",\"name\":\"Muppy\",\"policy_number\":\"1002\",\"record_timestamp\":\"\"}}\n"
+		//fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
+		checkResponseData(t, responseString, response.Body.String(), true)
+	})
+	t.Run("TestAPI_Update_Address", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/v2/address/update", nil)
+		requestBody, err := json.Marshal(map[string]string{
+			"address":   "911 Las Vegas Street",
+			"insuredId": "2",
+		})
+		if err != nil {
+			t.Errorf("Bad request")
+		}
+
+		// test update on already-created - should fail
+		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusConflict, response.Code)
+		responseString := `{"error":"Record does not exist. Use 'new' to create."}` + "\n"
+		checkResponseData(t, responseString, response.Body.String(), true)
+
+		// update
+		requestBody, err = json.Marshal(map[string]string{
+			"address":   "911 Las Vegas Street",
+			"insuredId": "1",
+		})
+		if err != nil {
+			t.Errorf("Bad request")
+		}
+
+		// change of address
+		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
+		response = executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusOK, response.Code)
+		responseString = `{"id":5,"data":{"address":"911 Las Vegas Street","id":"5","insured_id":"1","record_timestamp":""}}` + "\n"
+		checkResponseData(t, responseString, response.Body.String(), true)
+	})
+	t.Run("TestAPI_Update_Employee_FailDuplicate", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		requestBody, err := json.Marshal(map[string]string{
+			"name":       "Charles Bronson",
+			"startDate":  "1974-07-24",
+			"endDate":    "1999-01-14",
+			"insuredId":  "2",
+			"employeeId": "",
+		})
+		if err != nil {
+			t.Errorf("Bad request")
+		}
+
+		// should fail, doesn't exist
+		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusConflict, response.Code)
+		responseString := `{"error":"Record does not exist. Use 'new' to create."}` + "\n"
+		checkResponseData(t, responseString, response.Body.String(), true)
+
+	})
+
+	t.Run("TestAPI_Update_Employee_FailMissingInsuredId", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		requestBody, err := json.Marshal(map[string]string{
+			"name":       "Mister Bungle",
+			"startDate":  "1974-07-24",
+			"endDate":    "1999-01-14",
+			"employeeId": "2",
+		})
+		if err != nil {
+			t.Errorf("Bad request")
+		}
+
+		// should fail, doesn't exist
+		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusBadRequest, response.Code)
+		responseString := `{"error":"Cannot create record for non-existent insuredId"}` + "\n"
+		checkResponseData(t, responseString, response.Body.String(), true)
+
+	})
+
+	// update
+	t.Run("TestAPI_Update_Employee_Succeed", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		requestBody, err := json.Marshal(map[string]string{
+			"name":       "Mister Bungle",
+			"startDate":  "1974-07-24",
+			"endDate":    "1999-01-14",
+			"insuredId":  "1",
+			"employeeId": "2",
+		})
+		if err != nil {
+			t.Errorf("Bad request")
+		}
+
+		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
+		response := executeRequest(req, httpserver)
+		checkResponseCode(t, http.StatusOK, response.Code)
+		responseString := `{"id":7,"data":{"end_date":"1999-01-14","id":"7","insured_id":"1","name":"Mister Bungle","record_timestamp":"","start_date":"1974-07-24"}}` + "\n"
+		checkResponseData(t, responseString, response.Body.String(), true)
+	})
 }
 
 func executeRequest(req *http.Request, httpserver *http.Server) *httptest.ResponseRecorder {
@@ -229,7 +437,8 @@ func MustCloseDB(tb testing.TB, db *sqlite.DB) {
 		tb.Fatal(err)
 	}
 }
-/* 
+
+/*
 TODO: delete DB after tests that alter it
 func MustCloseDBAndDelete(tb testing.TB, db *sqlite.DB, dir string) {
 	MustCloseDB(tb, db)

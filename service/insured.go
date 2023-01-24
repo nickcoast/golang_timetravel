@@ -92,10 +92,10 @@ func (s *SqliteRecordService) CreateResource(ctx context.Context, resource strin
 }
 
 func (s *SqliteRecordService) UpdateResource(ctx context.Context, resource string, record entity.Record) (updateRecord entity.Record, err error) {
-	id := updateRecord.ID
+	/* id := updateRecord.ID
 	if id != 0 {
 		return updateRecord, ErrRecordIDInvalid
-	}
+	} */
 	timestamp := time.Now() // for all new record creation
 	log.Println("SqliteRecordServce.updateRecord record:", updateRecord)
 	if resource == "insured" {

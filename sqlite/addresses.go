@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-
 	"github.com/nickcoast/timetravel/entity"
 )
 
@@ -30,8 +29,9 @@ func createAddress(ctx context.Context, tx *Tx, address *entity.Address) (newRec
 	if err := address.Validate(); err != nil {
 		return newRecord, err
 	}
+	table := address.GetDataTableName()
 	query := `
-	INSERT INTO insured_addresses (` + "\n" +
+	INSERT INTO ` + table + ` (` + "\n" +
 		`	address,` + "\n" +
 		`	insured_id,` + "\n" +
 		`	record_timestamp` + "\n" +
@@ -67,9 +67,12 @@ func (s *InsuredService) CountInsuredAddresses(ctx context.Context, insured enti
 	if err := insured.Validate(); err != nil {
 		return count, err
 	}
+	//entity.Address.GetIdentTableName
+	address := entity.Address{}
+	table := address.GetIdentTableName()
 	query := `
-	SELECT COUNT(*) FROM insured_addresses
-	WHERE insured_id = ?
+	SELECT COUNT(*) FROM ` + table + "\n" +
+		`WHERE insured_id = ?
 `
 	result, err := tx.QueryContext(ctx, query, insured.ID)
 	log.Println("GetAddressesForInsured", insured, "Query: ", query)
@@ -83,4 +86,33 @@ func (s *InsuredService) CountInsuredAddresses(ctx context.Context, insured enti
 		}
 	}
 	return count, nil
+}
+
+func (s *InsuredService) UpdateAddress(ctx context.Context, address *entity.Address) (record entity.Record, err error) {
+	tx, err := s.Db.BeginTx(ctx, nil)
+	if err != nil {
+		return record, err
+	}
+	defer tx.Rollback()
+
+	insured := &entity.Insured{}
+	insured, err = s.Db.GetInsuredById(ctx, *insured, int64(address.InsuredId))
+
+	count, err := s.CountInsuredAddresses(ctx, *insured)
+	if count == 0 {
+		return record, ErrRecordAlreadyExists
+	}
+
+	existingAddress, err := s.Db.GetAddressById(ctx, *address, int64(address.ID))
+
+	if existingAddress.Address == address.Address {
+		return record, ErrUpdateMustChangeAValue
+	}
+
+	// Create a new address record
+	record, err = createAddress(ctx, tx, address)
+	if err != nil {
+		return record, err
+	}
+	return record, tx.Commit()
 }
