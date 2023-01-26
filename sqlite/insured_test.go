@@ -30,7 +30,6 @@ func TestInsuredService_CreateInsured(t *testing.T) {
 
 		// Create new insured & verify ID and timestamps are set.
 		newRecord, err := s.CreateInsured(context.Background(), u)
-		fmt.Println("New insured with id:", newRecord.ID, "and data (should include policy number):", newRecord.Data)
 		if err != nil {
 			t.Fatal(err)
 		} else if got, want := newRecord.ID, 3; got != want {
@@ -314,7 +313,6 @@ func MustCreateInsured(tb testing.TB, ctx context.Context, db *sqlite.DB, insure
 	if err != nil {
 		tb.Fatal(err)
 	}
-	fmt.Println(record)
 	newInsured.FromRecord(record)
 	return newInsured, ctx
 }
@@ -349,7 +347,7 @@ func MustCreateInsured(tb testing.TB, ctx context.Context, db *sqlite.DB, insure
 
 func TestInsuredService_GetInsuredByDate(tb *testing.T) {
 	// Ensure Resource can be gotten by ID
-	tb.Run("TestInsuredService_GetInsuredByDat", func(tb *testing.T) { // TODO: add employees, addresses tests
+	tb.Run("TestInsuredService_GetInsuredByDate", func(tb *testing.T) { // TODO: add employees, addresses tests
 		db := MustOpenDB(tb)
 		defer MustCloseDB(tb, db)
 		//s := sqlite.NewInsuredService(db)
@@ -361,15 +359,13 @@ func TestInsuredService_GetInsuredByDate(tb *testing.T) {
 		}
 		pastTimestamp := past
 		now := time.Now()
-		fmt.Println("pastTimestamp", pastTimestamp, "now", now)
 		// Starts at id:3, policy_number 1002
-		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "john" /* PolicyNumber: 500, */, RecordTimestamp: now}) // id: 3
-		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "jane" /* PolicyNumber: 501, */, RecordTimestamp: now})
-		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "frank" /* PolicyNumber: 502, */, RecordTimestamp: now})
-		sue, _ := MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "sue" /* PolicyNumber: 503, */, RecordTimestamp: pastTimestamp}) // id: 6, pn: 1005
-		fmt.Print("SUUUUUUUUUUE", sue)
+		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "john", RecordTimestamp: now})                    // id: 3, PolicyNumber: 1002
+		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "jane", RecordTimestamp: now})                    // PolicyNumber: 1003
+		MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "frank", RecordTimestamp: now})                   // PolicyNumber: 1004
+		sue, _ := MustCreateInsured(tb, ctx, db, &entity.Insured{Name: "sue", RecordTimestamp: pastTimestamp}) // id: 6,  PolicyNumber: 1005
 
-		/* MustCreateEmployee(tb, ctx, db, employee{Name: "Sue 1,"}) */
+		// MustCreateEmployee(tb, ctx, db, employee{Name: "Sue 1,"})
 		employees, timestamps, ctx := MustCreateEmployees(tb, ctx, db, sue)
 		fmt.Println("employees", employees)
 

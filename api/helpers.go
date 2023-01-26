@@ -8,7 +8,8 @@ import (
 )
 
 var (
-	ErrInternal = errors.New("internal error")
+	ErrInternal        = errors.New("internal error")
+	ErrInvalidEndpoint = errors.New("Please use 'insured', 'address', or 'employee'. No endpoint for: ")
 )
 
 // logs an error if it's not nil
@@ -50,7 +51,7 @@ func resourceNameFromSynonym(resourceSynonym string) (resourceName string, err e
 	}
 	resourceName, ok := synonyms[resourceSynonym]
 	if !ok {
-		return "", errors.New("No endpoint for" + resourceSynonym + ". Please use 'insured', 'addresses', or 'employees'")
+		return "", errors.New(ErrInvalidEndpoint.Error() + resourceSynonym)
 	}
 	return resourceName, nil
 }

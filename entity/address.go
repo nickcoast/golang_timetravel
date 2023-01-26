@@ -98,8 +98,8 @@ func (e *Address) ToRecord() Record {
 		Data: map[string]string{
 			"id":               idString,
 			"address":          e.Address,
-			"insured_id":       strconv.Itoa(e.InsuredId),
-			"record_timestamp": strconv.Itoa(int(e.RecordTimestamp.Unix())),
+			"insuredId":       strconv.Itoa(e.InsuredId),
+			"recordTimestamp": strconv.Itoa(int(e.RecordTimestamp.Unix())),
 		},
 	}
 	return r
@@ -109,7 +109,7 @@ func (e *Address) FromRecord(r Record) (err error) {
 	e.ID = r.ID
 	e.Address = r.Data["address"]
 	e.InsuredId, err = strconv.Atoi(r.Data["insured_id"])
-	timestampInt, err := strconv.Atoi(r.Data["record_timestamp"])
+	timestampInt, err := strconv.Atoi(r.Data["recordTimestamp"])
 	e.RecordTimestamp = time.Unix(int64(timestampInt), 0)
 	return err
 }

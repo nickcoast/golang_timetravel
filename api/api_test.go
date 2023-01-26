@@ -8,12 +8,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-
+	"path/filepath"
 	"regexp"
 	"strings"
-
-	//"net/http/httptest"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -21,8 +18,6 @@ import (
 	"github.com/nickcoast/timetravel/api"
 	"github.com/nickcoast/timetravel/service"
 	"github.com/nickcoast/timetravel/sqlite"
-	//"github.com/gorilla/mux"
-	//"github.com/steinfletcher/apitest"
 )
 
 type APItest struct {
@@ -54,327 +49,490 @@ type APItest struct {
 
 // TODO: can test a bunch of GET requests in one test. New, Update, Delete can be separate
 
+func TestAPI_InvalidRequest(t *testing.T) {
+	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+	defer MustCloseDB(t, db)
+
+	t.Run("Path", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/v2/bad_path/id/2", nil)
+		expectedResponseCode := http.StatusBadRequest
+		expectedResponseString := `{"error":"` + api.ErrInvalidEndpoint.Error() + "bad_path\"}\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+	t.Run("Action", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/v2/employee/asdf/2", nil)
+		expectedResponseCode := http.StatusNotFound
+		expectedResponseString := `404 page not found` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+	t.Run("API", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/v999/address/id/1", nil)
+		expectedResponseCode := http.StatusNotFound
+		expectedResponseString := `404 page not found` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+	t.Run("SQL_DROP_DATABASE", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		requestBody := map[string]string{
+			"employeeId": "1",
+			"name":       "DROP DATABASE;", // existing record
+			"insuredId":  "1",
+			"startDate":  "2006-01-02",
+		}
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":1,"data":{"id":"1","insuredId":"1","name":"DROP DATABASE;","recordTimestamp":"","startDate":"2006-01-02"}}` + "\n"
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+	})
+	t.Run("SQL_DELETE_FROM_INSURED", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		requestBody := map[string]string{
+			"employeeId": "1",
+			"insuredId":  "1", // existing record
+			"name":       "DELETE FROM insured;",
+			"startDate":  "1000-01-01",
+			"endDate":    "1420-04-20",
+		}
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":1,"data":{"endDate":"1420-04-20","id":"1","insuredId":"1","name":"DELETE FROM insured;","recordTimestamp":"","startDate":"1000-01-01"}}` + "\n"
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+
+		/* req, _ = http.NewRequest("GET", "/api/v2/insured/id/1", nil)
+		expectedResponseCode = http.StatusOK
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString) */
+	})
+
+	t.Run("SQL3", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/updates", nil)
+		requestBody := map[string]string{
+			"id":   "1",
+			"name": "DROP DATABASE;", // existing record
+		}
+		expectedResponseCode := http.StatusBadRequest
+		expectedResponseString := `{"error": "updates is not an action. use create, update, delete"}` + "\n"
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+	})
+}
+
 func TestAPI_GetById(t *testing.T) {
 	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
 	defer MustCloseDB(t, db)
 
-	t.Run("TestAPI_GetById_Insured", func(t *testing.T) {
+	t.Run("Insured", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/v2/insured/id/2", nil)
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusOK, response.Code)
-
-		responseString := "{\"id\":\"2\",\"name\":\"John Smith\",\"policy_number\":\"1001\",\"recordTimestamp\":\"946684799\",\"recordDateTime\":\"Fri, 31 Dec 1999 23:59:59 UTC\",\"employees\":null,\"insuredAddresses\":null}\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":"2","name":"John Smith","policyNumber":"1001","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC","employees":null,"insuredAddresses":null}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 	})
-	t.Run("TestAPI_GetById_Employee", func(t *testing.T) { // should get latest Mister Bungle record. lol
+	t.Run("Employee", func(t *testing.T) { // should get latest Mister Bungle record. lol
 		req, _ := http.NewRequest("GET", "/api/v2/employee/id/2", nil)
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusOK, response.Code)
-
-		responseString := "{\"id\":\"2\",\"name\":\"Mister Bungle\",\"startDate\":\"1984-11-10\",\"endDate\":\"1996-06-01\",\"insuredId\":\"1\",\"recordTimestamp\":\"852206400\",\"recordDateTime\":\"Thu, 02 Jan 1997 12:00:00 UTC\"}\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":"2","name":"Mister Bungle","startDate":"1984-11-10","endDate":"1996-06-01","insuredId":"1","recordTimestamp":"852206400","recordDateTime":"Thu, 02 Jan 1997 12:00:00 UTC"}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 	})
-	t.Run("TestAPI_GetById_Address", func(t *testing.T) { // should get 123 Fake Street, Springfield, Oregon
+	t.Run("Employee_EmptyEndDate", func(t *testing.T) { // should get latest Mister Bungle record. lol
+		req, _ := http.NewRequest("GET", "/api/v2/employee/id/1", nil)
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":"1","name":"Jimmy Temelpa","startDate":"1984-10-01","endDate":"","insuredId":"1","recordTimestamp":"468072000","recordDateTime":"Wed, 31 Oct 1984 12:00:00 UTC"}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+	t.Run("Address", func(t *testing.T) { // should get 123 Fake Street, Springfield, Oregon
 		req, _ := http.NewRequest("GET", "/api/v2/address/id/1", nil)
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusOK, response.Code)
-
-		responseString := "{\"id\":\"1\",\"address\":\"123 Fake Street, Springfield, Oregon\",\"recordTimestamp\":\"468072000\",\"recordDateTime\":\"Wed, 31 Oct 1984 12:00:00 UTC\"}\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":"1","address":"123 Fake Street, Springfield, Oregon","recordTimestamp":"468072000","recordDateTime":"Wed, 31 Oct 1984 12:00:00 UTC"}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 	})
-
 }
 
+func TestAPI_GetById_ShouldFail_NotFound(t *testing.T) {
+	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+	defer MustCloseDB(t, db)
+
+	t.Run("TestAPI_GetById_Insured_ShouldFail_NotFound", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/v2/insured/id/99", nil)
+		expectedResponseCode := http.StatusNotFound
+		expectedResponseString := `{"error":"record of id 99 does not exist"}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+	t.Run("TestAPI_GetById_Employee_ShouldFail_NotFound", func(t *testing.T) { // should get latest Mister Bungle record. lol
+		req, _ := http.NewRequest("GET", "/api/v2/employee/id/99", nil)
+		expectedResponseCode := http.StatusNotFound
+		expectedResponseString := `{"error":"record of id 99 does not exist"}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+	t.Run("TestAPI_GetById_Address_ShouldFail_NotFound", func(t *testing.T) { // should get 123 Fake Street, Springfield, Oregon
+		req, _ := http.NewRequest("GET", "/api/v2/address/id/99", nil)
+		expectedResponseCode := http.StatusNotFound
+		expectedResponseString := `{"error":"record of id 99 does not exist"}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+}
+
+// TestAPI_GetByTime
 func TestAPI_GetByTime(t *testing.T) {
 	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
 	defer MustCloseDB(t, db)
 	t.Run("TestAPI_GetByTime_Timestamp", func(t *testing.T) {
-		req, _ := http.NewRequest("GET", "/api/v2/insured/getbytimestamp/2/954590400", nil)
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusOK, response.Code)
-
-		responseString := `{"id":"2","name":"John Smith","policy_number":"1001","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC","employees":{"0":{"id":"3","name":"John Smith","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC"},"1":{"id":"4","name":"Jane Doe","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"},"2":{"id":"5","name":"Grant Tombly","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"}},"insuredAddresses":{}}` + "\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
+		req, _ := http.NewRequest("GET", "/api/v2/insured/getbytimestamp/2/954590400", nil) // 2000-04-01
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":"2","name":"John Smith","policyNumber":"1001","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC","employees":{"0":{"id":"3","name":"John Smith","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC"},"1":{"id":"4","name":"Jane Doe","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"},"2":{"id":"5","name":"Grant Tombly","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"}},"insuredAddresses":{}}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 	})
-	t.Run("TestAPI_GetByTime_Date", func(t *testing.T) { // same date as timestamp 954590400
+	t.Run("TestAPI_GetByTime_Date", func(t *testing.T) { // 2000-04-01
 		req, _ := http.NewRequest("GET", "/api/v2/insured/getbydate/2/2000-04-01", nil)
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusOK, response.Code)
-
-		responseString := `{"id":"2","name":"John Smith","policy_number":"1001","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC","employees":{"0":{"id":"3","name":"John Smith","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC"},"1":{"id":"4","name":"Jane Doe","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"},"2":{"id":"5","name":"Grant Tombly","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"}},"insuredAddresses":{}}` + "\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":"2","name":"John Smith","policyNumber":"1001","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC","employees":{"0":{"id":"3","name":"John Smith","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC"},"1":{"id":"4","name":"Jane Doe","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"},"2":{"id":"5","name":"Grant Tombly","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"}},"insuredAddresses":{}}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 	})
-	t.Run("TestAPI_GetByTime_Date_404", func(t *testing.T) { // same date as timestamp 954590400
+	t.Run("TestAPI_GetByTime_Date_NotFound", func(t *testing.T) { // non-existent insuredId. // 2000-04-01
 		req, _ := http.NewRequest("GET", "/api/v2/insured/getbydate/99/2000-04-01", nil)
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusNotFound, response.Code)
+		expectedResponseCode := http.StatusNotFound
+		expectedResponseString := `{"error":"No record for Insured 99 and date 2000-04-01 exist"}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
 
-		responseString := `{"error":"No record for Insured 99 and date 2000-04-01 exist"}` + "\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
+	t.Run("TestAPI_GetByTime_Date_OldDate", func(t *testing.T) { // 1000 A.D. - will still return insured with date, but no employees, address
+		req, _ := http.NewRequest("GET", "/api/v2/insured/getbydate/2/1000-04-01", nil)
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":"2","name":"John Smith","policyNumber":"1001","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC","employees":{},"insuredAddresses":{}}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+	t.Run("TestAPI_GetByTime_Timestamp", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/v2/insured/getbytimestamp/2/954590400", nil) // 2000-04-01
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":"2","name":"John Smith","policyNumber":"1001","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC","employees":{"0":{"id":"3","name":"John Smith","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"946684799","recordDateTime":"Fri, 31 Dec 1999 23:59:59 UTC"},"1":{"id":"4","name":"Jane Doe","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"},"2":{"id":"5","name":"Grant Tombly","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"}},"insuredAddresses":{}}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 	})
 }
 
 func TestAPI_DeleteById(t *testing.T) {
 	t.Run("TestAPI_DeleteById_Insured", func(t *testing.T) {
-		_, httpserver, db := MustOpenDBAndSetUpRoutes(t) // TODO: make so only do this once per set of tests.
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t) // Load new test DB for each sub-test that alters the DB
 		defer MustCloseDB(t, db)
-		//defer MustCloseDBAndDelete(t, db, )
 
+		// 1.)
 		req, _ := http.NewRequest("DELETE", "/api/v2/employees/delete/4", nil)
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusOK, response.Code)
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":"4","name":"Jane Doe","startDate":"1985-05-15","endDate":"1999-12-25","insuredId":"2","recordTimestamp":"954590400","recordDateTime":"Sat, 01 Apr 2000 12:00:00 UTC"}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 
-		responseString := "{\"id\":\"4\",\"name\":\"Jane Doe\",\"startDate\":\"1985-05-15\",\"endDate\":\"1999-12-25\",\"insuredId\":\"2\",\"recordTimestamp\":\"954590400\",\"recordDateTime\":\"Sat, 01 Apr 2000 12:00:00 UTC\"}\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
-
-		// 2nd request should return 404
-		response = executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusNotFound, response.Code)
-
-		// TODO: return original record with ID set to 0 instead
-		responseString = "{\"error\":\"Cannot delete. Record does not exist.\"}\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
+		// 2.) CONFIRM DELETED. 2nd request should return 404
+		expectedResponseCode = http.StatusNotFound
+		expectedResponseString = "{\"error\":\"Cannot delete. Record does not exist.\"}\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 
 	})
 	t.Run("TestAPI_DeleteById_Employee", func(t *testing.T) {
-		_, httpserver, db := MustOpenDBAndSetUpRoutes(t) // TODO: make so only do this once per set of tests.
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
 		defer MustCloseDB(t, db)
-		//defer MustCloseDBAndDelete(t, db, )
 
+		// 1.) DELETE
 		req, _ := http.NewRequest("DELETE", "/api/v2/employees/delete/2", nil)
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusOK, response.Code)
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":"2","name":"Mister Bungle","startDate":"1984-11-10","endDate":"1996-06-01","insuredId":"1","recordTimestamp":"852206400","recordDateTime":"Thu, 02 Jan 1997 12:00:00 UTC"}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 
-		responseString := `{"id":"2","name":"Mister Bungle","startDate":"1984-11-10","endDate":"1996-06-01","insuredId":"1","recordTimestamp":"852206400","recordDateTime":"Thu, 02 Jan 1997 12:00:00 UTC"}` + "\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
-
-		// 2nd request should return 404
-		response = executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusNotFound, response.Code)
-
-		// TODO: return original record with ID set to 0 instead
-		responseString = "{\"error\":\"Cannot delete. Record does not exist.\"}\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
-
+		// 2.) CONFIRM DELETED. 2nd request should return 404
+		expectedResponseCode = http.StatusNotFound
+		expectedResponseString = "{\"error\":\"Cannot delete. Record does not exist.\"}\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 	})
 	t.Run("TestAPI_DeleteById_Address", func(t *testing.T) {
-		_, httpserver, db := MustOpenDBAndSetUpRoutes(t) // TODO: make so only do this once per set of tests.
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
 		defer MustCloseDB(t, db)
-		//defer MustCloseDBAndDelete(t, db, )
 
+		// 1.) DELETE
 		req, _ := http.NewRequest("DELETE", "/api/v2/address/delete/2", nil)
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusOK, response.Code)
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":"2","address":"123 REAL Street, Springfield, Oregon","recordTimestamp":"469368001","recordDateTime":"Thu, 15 Nov 1984 12:00:01 UTC"}` + "\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 
-		responseString := `{"id":"2","address":"123 REAL Street, Springfield, Oregon","recordTimestamp":"469368001","recordDateTime":"Thu, 15 Nov 1984 12:00:01 UTC"}` + "\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
+		// 2.) CONFIRM DELETED. 2nd request should return 404
+		expectedResponseCode = http.StatusNotFound
+		expectedResponseString = "{\"error\":\"Cannot delete. Record does not exist.\"}\n"
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+}
 
-		// 2nd request should return 404
-		response = executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusNotFound, response.Code)
+func TestAPI_DeleteById_NotFound(t *testing.T) {
+	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+	defer MustCloseDB(t, db)
+	t.Run("TestAPI_DeleteById_NotFound_Insured", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/api/v2/employees/delete/99", nil)
+		expectedResponseCode := http.StatusNotFound
+		expectedResponseString := "{\"error\":\"Cannot delete. Record does not exist.\"}\n"
 
-		// TODO: return original record with ID set to 0 instead
-		responseString = "{\"error\":\"Cannot delete. Record does not exist.\"}\n"
-		fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), false)
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+	t.Run("TestAPI_DeleteById_NotFound_Employee", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/api/v2/employees/delete/99", nil)
+		expectedResponseCode := http.StatusNotFound
+		expectedResponseString := "{\"error\":\"Cannot delete. Record does not exist.\"}\n"
 
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+	t.Run("TestAPI_DeleteById_NotFound_Address", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/api/v2/address/delete/99", nil)
+		expectedResponseCode := http.StatusNotFound
+		expectedResponseString := "{\"error\":\"Cannot delete. Record does not exist.\"}\n"
+
+		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 	})
 }
 
 func TestAPI_Create(t *testing.T) {
-	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+	_, httpserver, db := MustOpenDBAndSetUpRoutes(t) // move this inside each sub-test if they affect each other
 	defer MustCloseDB(t, db)
 
-	t.Run("TestAPI_Create_Insured", func(t *testing.T) {
+	t.Run("Insured", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/api/v2/insured/new", nil)
-		requestBody, err := json.Marshal(map[string]string{
+		expectedResponseCode := http.StatusCreated
+		expectedResponseString := `{"id":3,"data":{"id":"3","name":"Muppy","policyNumber":"1002","recordTimestamp":""}}` + "\n"
+		requestBody := map[string]string{
 			"name": "Muppy",
-		})
-		if err != nil {
-			t.Errorf("Bad request")
 		}
-
-		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
-
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusCreated, response.Code)
-
-		responseString := "{\"id\":3,\"data\":{\"id\":\"3\",\"name\":\"Muppy\",\"policy_number\":\"1002\",\"record_timestamp\":\"\"}}\n"
-		//fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), true)
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
 	})
-	t.Run("TestAPI_Create_Address", func(t *testing.T) {
+	t.Run("Address", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/api/v2/address/new", nil)
-		requestBody, err := json.Marshal(map[string]string{
+		expectedResponseCode := http.StatusCreated
+		expectedResponseString := `{"id":5,"data":{"address":"911 Reno Street","id":"5","insuredId":"2","recordTimestamp":""}}` + "\n"
+		requestBody := map[string]string{
 			"address":   "911 Reno Street",
 			"insuredId": "2",
-		})
-		if err != nil {
-			t.Errorf("Bad request")
 		}
+		// 1.) Create
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
 
-		// test create new
-		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusCreated, response.Code)
-		responseString := `{"id":5,"data":{"address":"911 Reno Street","id":"5","insured_id":"2","record_timestamp":""}}` + "\n"
-		checkResponseData(t, responseString, response.Body.String(), true)
-
-		// test duplicate error
-		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
-		response = executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusConflict, response.Code)
-		responseString = `{"error":"Record already exists. Use 'update' to update"}` + "\n"
-		checkResponseData(t, responseString, response.Body.String(), true)
+		// 2.) Duplicate
+		expectedResponseCode = http.StatusConflict
+		expectedResponseString = `{"error":"Record already exists. Use 'update' to update"}` + "\n"
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
 	})
-	t.Run("TestAPI_Create_Employee", func(t *testing.T) {
+	t.Run("Employee", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/api/v2/employee/new", nil)
-		requestBody, err := json.Marshal(map[string]string{
+		expectedResponseCode := http.StatusCreated
+		expectedResponseString := `{"id":7,"data":{"endDate":"1994-01-14","id":"7","insuredId":"2","name":"Charles Bronson","recordTimestamp":"","startDate":"1974-07-24"}}` + "\n"
+		requestBody := map[string]string{
 			"name":      "Charles Bronson",
 			"startDate": "1974-07-24",
 			"endDate":   "1994-01-14",
 			"insuredId": "2",
-		})
-		if err != nil {
-			t.Errorf("Bad request")
 		}
-
-		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusCreated, response.Code)
-		responseString := `{"id":7,"data":{"end_date":"1994-01-14","id":"7","insured_id":"2","name":"Charles Bronson","record_timestamp":"","start_date":"1974-07-24"}}` + "\n"
-		checkResponseData(t, responseString, response.Body.String(), true)
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
 	})
 }
 
-func TestAPI_Update(t *testing.T) {
+func TestAPI_Update_Insured(t *testing.T) {
 	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
 	defer MustCloseDB(t, db)
-
 	t.Run("TestAPI_Update_Insured", func(t *testing.T) {
 		req, _ := http.NewRequest("PUT", "/api/v2/insured/update", nil)
-		requestBody, err := json.Marshal(map[string]string{
-			"name": "Muppy",
-		})
-		if err != nil {
-			t.Errorf("Bad request")
+		expectedResponseCode := http.StatusConflict
+		expectedResponseString := fmt.Sprintf(`{"error":"%s"}`, service.ErrRecordAlreadyExists) + "\n" // TODO: change to "cannot update insured core data without authorization"
+		requestBody := map[string]string{
+			"id":   "1",
+			"name": "Jimmy Temelpa", // existing record
 		}
-
-		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusConflict, response.Code) // cannot update core insured data
-
-		responseString := `{"error":"Duplicate record. Must change at least one value to update."}` + "\n"
-		//fmt.Println("Response string:\n", response.Body.String(), "\nExpected:", responseString)
-		checkResponseData(t, responseString, response.Body.String(), true)
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
 	})
-	t.Run("TestAPI_Update_Address", func(t *testing.T) {
-		req, _ := http.NewRequest("PUT", "/api/v2/address/update", nil)
-		requestBody, err := json.Marshal(map[string]string{
-			"address":   "911 Las Vegas Street",
-			"insuredId": "2",
-		})
-		if err != nil {
-			t.Errorf("Bad request")
-		}
+}
 
-		// test update on already-created - should fail
-		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusConflict, response.Code)
-		responseString := `{"error":"Record does not exist. Use 'new' to create."}` + "\n"
-		checkResponseData(t, responseString, response.Body.String(), true)
-
-		// update
-		requestBody, err = json.Marshal(map[string]string{
-			"address":   "911 Las Vegas Street",
-			"insuredId": "1",
-		})
-		if err != nil {
-			t.Errorf("Bad request")
-		}
-
-		// change of address
-		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
-		response = executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusOK, response.Code)
-		responseString = `{"id":5,"data":{"address":"911 Las Vegas Street","id":"5","insured_id":"1","record_timestamp":""}}` + "\n"
-		checkResponseData(t, responseString, response.Body.String(), true)
-	})
-	t.Run("TestAPI_Update_Employee_FailDuplicate", func(t *testing.T) {
+func TestAPI_Update_Employee(t *testing.T) {
+	t.Run("Fail_MissingEmployeeId", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+		defer MustCloseDB(t, db)
 		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
-		requestBody, err := json.Marshal(map[string]string{
+		expectedResponseCode := http.StatusBadRequest
+		expectedResponseString := fmt.Sprintf(`{"error":"%s"}`, service.ErrEntityIDInvalid) + "\n"
+		requestBody := map[string]string{
 			"name":       "Charles Bronson",
 			"startDate":  "1974-07-24",
 			"endDate":    "1999-01-14",
 			"insuredId":  "2",
 			"employeeId": "",
-		})
-		if err != nil {
-			t.Errorf("Bad request")
+		}
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+	})
+	// Deleted "TestAPI_Update_Employee_Fail_RequireCreate"
+
+	t.Run("Fail_NoChanges", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+		defer MustCloseDB(t, db)
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		expectedResponseCode := http.StatusConflict
+		expectedResponseString := fmt.Sprintf(`{"error":"%s"}`, service.ErrRecordUpdateRequireChange) + "\n"
+		requestBody := map[string]string{
+			"name":       "Mister Bungle",
+			"startDate":  "1984-11-10",
+			"endDate":    "1996-06-01",
+			"insuredId":  "1", // try with 2
+			"employeeId": "2",
 		}
 
-		// should fail, doesn't exist
-		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusConflict, response.Code)
-		responseString := `{"error":"Duplicate recordasdfge at least one value to update."}` + "\n"
-		checkResponseData(t, responseString, response.Body.String(), true)
-
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
 	})
 
-	t.Run("TestAPI_Update_Employee_FailMissingInsuredId", func(t *testing.T) {
+	// TODO:
+	/* t.Run("Fail_MalformedDate", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+		defer MustCloseDB(t, db)
 		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
-		requestBody, err := json.Marshal(map[string]string{
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":2,"data":{"endDate":"0001-01-01","id":"2","insuredId":"1","name":"Mister Bungle","recordTimestamp":"","startDate":"1974-07-24"}}` + "\n"
+		requestBody := map[string]string{
+			"name":       "Mister Bungle",
+			"startDate":  "1974-07-24",
+			"endDate":    "199-01-14",
+			"insuredId":  "1",
+			"employeeId": "2",
+		}
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+	}) */
+
+	// TODO:
+	/* t.Run("Fail_StartDateAfterEndDate", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+		defer MustCloseDB(t, db)
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		expectedResponseCode := http.StatusBadRequest
+		expectedResponseString := `` + "\n"
+		requestBody := map[string]string{
+			"name":       "Mister Bungle",
+			"startDate":  "1974-07-24",
+			"endDate":    "1000-01-14",
+			"insuredId":  "1",
+			"employeeId": "2",
+		}
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+	}) */
+
+	// TODO:
+	/* t.Run("Fail_WrongInsuredId", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+		defer MustCloseDB(t, db)
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		expectedResponseCode := http.StatusConflict
+		expectedResponseString := fmt.Sprintf(`{"error":"%s"}`, service.ErrRecordUpdateRequireChange) + "\n" // wrong error
+		requestBody := map[string]string{
+			"name":      "Mister Bungle",
+			"startDate": "1984-11-10",
+			"endDate":   "1996-06-01",
+			"insuredId": "2", // actual id is 1
+			"employeeId": "2",
+		}
+
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+	}) */
+
+	t.Run("Fail_MissingInsuredId", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+		defer MustCloseDB(t, db)
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		expectedResponseCode := http.StatusConflict
+		expectedResponseString := `{"error":"Cannot create record for non-existent insuredId"}` + "\n"
+		requestBody := map[string]string{
 			"name":       "Mister Bungle",
 			"startDate":  "1974-07-24",
 			"endDate":    "1999-01-14",
 			"employeeId": "2",
-		})
-		if err != nil {
-			t.Errorf("Bad request")
+			// "insuredId" REQUIRED
 		}
 
 		// should fail, doesn't exist
-		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusConflict, response.Code)
-		responseString := `{"error":"Cannot create record for non-existent insuredId"}` + "\n"
-		checkResponseData(t, responseString, response.Body.String(), true)
-
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
 	})
 
 	// update
-	t.Run("TestAPI_Update_Employee_Succeed", func(t *testing.T) {
+	t.Run("Succeed_FullData", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+		defer MustCloseDB(t, db)
 		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
-		requestBody, err := json.Marshal(map[string]string{
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":2,"data":{"endDate":"1999-01-14","id":"2","insuredId":"1","name":"Mister Bungle","recordTimestamp":"","startDate":"1974-07-24"}}` + "\n"
+		requestBody := map[string]string{
 			"name":       "Mister Bungle",
 			"startDate":  "1974-07-24",
 			"endDate":    "1999-01-14",
 			"insuredId":  "1",
 			"employeeId": "2",
-		})
-		if err != nil {
-			t.Errorf("Bad request")
 		}
-
-		req.Body = io.NopCloser(strings.NewReader(string(requestBody)))
-		response := executeRequest(req, httpserver)
-		checkResponseCode(t, http.StatusOK, response.Code)
-		responseString := `{"id":2,"data":{"end_date":"1999-01-14","id":"2","insured_id":"1","name":"Mister Bungle","record_timestamp":"","start_date":"1974-07-24"}}` + "\n"
-		checkResponseData(t, responseString, response.Body.String(), true)
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
 	})
+
+	t.Run("Succeed_EmptyEndDate", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+		defer MustCloseDB(t, db)
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		requestBody := map[string]string{
+			"employeeId": "1",
+			"name":       "Jimathy Trashleigh Moganstern III Esquire", // change name
+			"insuredId":  "1",
+			"startDate":  "2006-01-02", // change startDate
+			// no end date - should not change existing end date
+		}
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":1,"data":{"id":"1","insuredId":"1","name":"DROP DATABASE;","recordTimestamp":"","startDate":"2006-01-02"}}` + "\n"
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+	})
+
+	// TODO:
+	/* t.Run("PartialUpdate_Succeed", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+		defer MustCloseDB(t, db)
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		requestBody := map[string]string{
+			"employeeId": "1", // existing record
+			"name":        "Jim-Jim",
+			"insuredId":   "1",
+			// omit "startDate" required for new records.
+		}
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"error": "Cannot create record for non-existent insuredId"}` + "\n"
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+	}) */
+}
+
+func checkResponse(t *testing.T, req *http.Request, httpserver *http.Server, requestBody map[string]string, expectedResponseCode int, expectedResponseString string) {
+	requestJSON, err := json.Marshal(requestBody)
+	if err != nil {
+		t.Errorf("Bad request")
+	}
+	ignoreTimestamp := false
+	if req.Method == "POST" || req.Method == "PUT" {
+		ignoreTimestamp = true
+	}
+
+	req.Body = io.NopCloser(strings.NewReader(string(requestJSON)))
+	response := executeRequest(req, httpserver)
+	checkResponseCode(t, expectedResponseCode, response.Code)
+	checkResponseData(t, expectedResponseString, response.Body.String(), ignoreTimestamp)
+}
+
+func TestAPI_Update_Address(t *testing.T) {
+	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+	defer MustCloseDB(t, db)
+
+	t.Run("Conflict", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/v2/address/update", nil)
+		expectedResponseCode := http.StatusNotFound
+		expectedResponseString := `{"error":"Record does not exist. Use 'new' to create."}` + "\n"
+		requestBody := map[string]string{
+			"address":   "911 Las Vegas Street",
+			"insuredId": "2",
+		}
+		// 1.) test update on already-created - should fail
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+
+		// 2.) change of address
+		expectedResponseCode = http.StatusOK
+		expectedResponseString = `{"id":5,"data":{"address":"911 Las Vegas Street","id":"5","insuredId":"1","recordTimestamp":""}}` + "\n"
+		requestBody = map[string]string{
+			"address":   "911 Las Vegas Street",
+			"insuredId": "1",
+		}
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+	})
+
 }
 
 func executeRequest(req *http.Request, httpserver *http.Server) *httptest.ResponseRecorder {
@@ -389,8 +547,9 @@ func checkResponseCode(t *testing.T, expected, actual int) {
 	}
 }
 func checkResponseData(t *testing.T, expected, actual string, ignoreTimestamp bool) {
+	//fmt.Println("Response string:\n", actual, "\nExpected:\n", expected)
 	if ignoreTimestamp {
-		var re = regexp.MustCompile(`(record_timestamp":")([1-2][0-9]{9})"`)
+		var re = regexp.MustCompile(`(recordTimestamp":")([1-2][0-9]{9})"`)
 		actual = re.ReplaceAllString(actual, `${1}"`)
 	}
 	if expected != actual {
@@ -447,6 +606,7 @@ func MustCloseDBAndDelete(tb testing.TB, db *sqlite.DB, dir string) {
 
 //"*mux.Router, service.SqliteRecordService, "
 
+// TODO: get this from server.go
 func SetUpRoutes(db *sqlite.DB) (*api.API, service.SqliteRecordService, *http.Server) {
 	router := mux.NewRouter()
 	memoryService := service.NewInMemoryRecordService() // not testing this but need to avoid nil pointer ref
@@ -456,12 +616,12 @@ func SetUpRoutes(db *sqlite.DB) (*api.API, service.SqliteRecordService, *http.Se
 	apiRoute := router.PathPrefix("/api/v1").Subrouter()
 	apiRoute.Path("/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := json.NewEncoder(w).Encode(map[string]bool{"ok": true})
-		fmt.Println(err)
+		fmt.Println("Err setting up route:", err)
 	})
 	apiRouteV2 := router.PathPrefix("/api/v2").Subrouter()
 	apiRouteV2.Path("/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := json.NewEncoder(w).Encode(map[string]bool{"ok": true})
-		fmt.Println(err)
+		fmt.Println("Err setting up route:", err)
 	})
 	api.CreateRoutes(apiRoute, apiRouteV2)
 
@@ -480,6 +640,7 @@ func SetUpRoutes(db *sqlite.DB) (*api.API, service.SqliteRecordService, *http.Se
 }
 
 func MustOpenDBAndSetUpRoutes(t testing.TB) (*api.API, *http.Server, *sqlite.DB) {
+	fmt.Println("Test name opening DB:", t.Name())
 	db := MustOpenDB(t)
 	api, _, httpserver := SetUpRoutes(db)
 	return api, httpserver, db

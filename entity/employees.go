@@ -108,21 +108,18 @@ func NewEmployee(employeeID int, name string, startDate string, endDate string, 
 	}
 	start, err := time.Parse("2006-01-02", startDate)
 	if err != nil {
-		return employee, err
+		return employee, fmt.Errorf("Start/EndDate must be in format '2006-01-02'. EndDate may be empty.")
 	}
 	end, err := time.Parse("2006-01-02", endDate)
 	/* if err == nil {
 		employee.EndDate = end // leave empty on error
 	} */
 
-	fmt.Println("recordTimestamp:", recordTimestamp)
-	//timestamp, err := time.Parse("2006-01-02 15:04:05", recordTimestamp) // wrong timezone
+	//timestamp, err := time.Parse("2006-01-02 15:04:05", recordTimestamp) // wrong timezone. Need timezone part
 	timestamp, err := time.Parse("2006-01-02T15:04:05Z07:00", recordTimestamp)
-	fmt.Println("timestamp:", timestamp)
 	if err != nil {
 		return employee, err
 	}
-	fmt.Println("STUFFFFFFFFFFFFFFF", name, start, end, insuredId, timestamp)
 	employee = &Employee{
 		ID:              employeeID,
 		Name:            name,
@@ -131,7 +128,6 @@ func NewEmployee(employeeID int, name string, startDate string, endDate string, 
 		InsuredId:       insuredId,
 		RecordTimestamp: timestamp,
 	}
-	fmt.Println("EMPLOYEEEEEEEEEEEEEEEEe:", employee)
 
 	return employee, nil
 }
@@ -141,12 +137,12 @@ func (e *Employee) ToRecord() Record {
 	r := Record{
 		ID: e.ID,
 		Data: map[string]string{
-			"id":               idString,
-			"name":             e.Name,
-			"start_date":       e.StartDate.Format("2006-01-02"),
-			"end_date":         e.EndDate.Format("2006-01-02"),
-			"insured_id":       strconv.Itoa(e.InsuredId),
-			"record_timestamp": strconv.Itoa(int(e.RecordTimestamp.Unix())),
+			"id":              idString,
+			"name":            e.Name,
+			"startDate":       e.StartDate.Format("2006-01-02"),
+			"endDate":         e.EndDate.Format("2006-01-02"),
+			"insuredId":       strconv.Itoa(e.InsuredId),
+			"recordTimestamp": strconv.Itoa(int(e.RecordTimestamp.Unix())),
 		},
 	}
 	return r
