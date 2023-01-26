@@ -133,6 +133,10 @@ func NewEmployee(employeeID int, name string, startDate string, endDate string, 
 }
 
 func (e *Employee) ToRecord() Record {
+	endDateString := e.EndDate.Format("2006-01-02")
+	if endDateString == "0001-01-01" {
+		endDateString = ""
+	}
 	idString := strconv.Itoa(e.ID)
 	r := Record{
 		ID: e.ID,
@@ -140,7 +144,7 @@ func (e *Employee) ToRecord() Record {
 			"id":              idString,
 			"name":            e.Name,
 			"startDate":       e.StartDate.Format("2006-01-02"),
-			"endDate":         e.EndDate.Format("2006-01-02"),
+			"endDate":         endDateString,
 			"insuredId":       strconv.Itoa(e.InsuredId),
 			"recordTimestamp": strconv.Itoa(int(e.RecordTimestamp.Unix())),
 		},

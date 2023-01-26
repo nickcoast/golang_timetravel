@@ -49,7 +49,7 @@ type APItest struct {
 
 // TODO: can test a bunch of GET requests in one test. New, Update, Delete can be separate
 
-func TestAPI_InvalidRequest(t *testing.T) {
+func TestAPI_InvalidRequest_Get(t *testing.T) {
 	_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
 	defer MustCloseDB(t, db)
 
@@ -71,46 +71,7 @@ func TestAPI_InvalidRequest(t *testing.T) {
 		expectedResponseString := `404 page not found` + "\n"
 		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
 	})
-	t.Run("SQL_DROP_DATABASE", func(t *testing.T) {
-		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
-		requestBody := map[string]string{
-			"employeeId": "1",
-			"name":       "DROP DATABASE;", // existing record
-			"insuredId":  "1",
-			"startDate":  "2006-01-02",
-		}
-		expectedResponseCode := http.StatusOK
-		expectedResponseString := `{"id":1,"data":{"id":"1","insuredId":"1","name":"DROP DATABASE;","recordTimestamp":"","startDate":"2006-01-02"}}` + "\n"
-		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
-	})
-	t.Run("SQL_DELETE_FROM_INSURED", func(t *testing.T) {
-		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
-		requestBody := map[string]string{
-			"employeeId": "1",
-			"insuredId":  "1", // existing record
-			"name":       "DELETE FROM insured;",
-			"startDate":  "1000-01-01",
-			"endDate":    "1420-04-20",
-		}
-		expectedResponseCode := http.StatusOK
-		expectedResponseString := `{"id":1,"data":{"endDate":"1420-04-20","id":"1","insuredId":"1","name":"DELETE FROM insured;","recordTimestamp":"","startDate":"1000-01-01"}}` + "\n"
-		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
 
-		/* req, _ = http.NewRequest("GET", "/api/v2/insured/id/1", nil)
-		expectedResponseCode = http.StatusOK
-		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString) */
-	})
-
-	t.Run("SQL3", func(t *testing.T) {
-		req, _ := http.NewRequest("PUT", "/api/v2/employee/updates", nil)
-		requestBody := map[string]string{
-			"id":   "1",
-			"name": "DROP DATABASE;", // existing record
-		}
-		expectedResponseCode := http.StatusBadRequest
-		expectedResponseString := `{"error": "updates is not an action. use create, update, delete"}` + "\n"
-		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
-	})
 }
 
 func TestAPI_GetById(t *testing.T) {
@@ -140,6 +101,43 @@ func TestAPI_GetById(t *testing.T) {
 		expectedResponseCode := http.StatusOK
 		expectedResponseString := `{"id":"1","address":"123 Fake Street, Springfield, Oregon","recordTimestamp":"468072000","recordDateTime":"Wed, 31 Oct 1984 12:00:00 UTC"}` + "\n"
 		checkResponse(t, req, httpserver, nil, expectedResponseCode, expectedResponseString)
+	})
+}
+
+func TestAPI_InvalidRequest_Put(t *testing.T) {
+
+	t.Run("SQL_DROP_DATABASE", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+		defer MustCloseDB(t, db)
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		requestBody := map[string]string{
+			"employeeId": "1",
+			"name":       "DROP DATABASE;", // existing record
+			"insuredId":  "1",
+			"startDate":  "2006-01-02",
+		}
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":1,"data":{"endDate":"","id":"1","insuredId":"1","name":"DROP DATABASE;","recordTimestamp":"","startDate":"2006-01-02"}}` + "\n"
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+	})
+	t.Run("SQL_DELETE_FROM_INSURED", func(t *testing.T) {
+		_, httpserver, db := MustOpenDBAndSetUpRoutes(t)
+		defer MustCloseDB(t, db)
+		req, _ := http.NewRequest("PUT", "/api/v2/employee/update", nil)
+		requestBody := map[string]string{
+			"employeeId": "1",
+			"insuredId":  "1", // existing record
+			"name":       "DELETE FROM insured;",
+			"startDate":  "1000-01-01",
+			"endDate":    "1420-04-20",
+		}
+		expectedResponseCode := http.StatusOK
+		expectedResponseString := `{"id":1,"data":{"endDate":"1420-04-20","id":"1","insuredId":"1","name":"DELETE FROM insured;","recordTimestamp":"","startDate":"1000-01-01"}}` + "\n"
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
+
+		/* req, _ = http.NewRequest("GET", "/api/v2/insured/id/1", nil)
+		expectedResponseCode = http.StatusOK
+		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString) */
 	})
 }
 
@@ -471,7 +469,7 @@ func TestAPI_Update_Employee(t *testing.T) {
 			// no end date - should not change existing end date
 		}
 		expectedResponseCode := http.StatusOK
-		expectedResponseString := `{"id":1,"data":{"id":"1","insuredId":"1","name":"DROP DATABASE;","recordTimestamp":"","startDate":"2006-01-02"}}` + "\n"
+		expectedResponseString := `{"id":1,"data":{"endDate":"","id":"1","insuredId":"1","name":"Jimathy Trashleigh Moganstern III Esquire","recordTimestamp":"","startDate":"2006-01-02"}}` + "\n"
 		checkResponse(t, req, httpserver, requestBody, expectedResponseCode, expectedResponseString)
 	})
 

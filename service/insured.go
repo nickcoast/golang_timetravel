@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/nickcoast/timetravel/entity"
@@ -71,7 +70,6 @@ func (s *SqliteRecordService) CreateResource(ctx context.Context, resource strin
 		return newRecord, ErrRecordIDInvalid
 	}
 	timestamp := time.Now() // for all new record creation
-	log.Println("SqliteRecordServce.CreateRecord record:", record)
 	if resource == "insured" {
 		return s.createInsured(ctx, timestamp, record)
 	} else if resource == "employee" || resource == "employees" {
@@ -93,7 +91,6 @@ func (s *SqliteRecordService) UpdateResource(ctx context.Context, resource strin
 		return updateRecord, ErrRecordIDInvalid
 	} */
 	timestamp := time.Now() // for all new record creation
-	log.Println("SqliteRecordServce.updateRecord record:", updateRecord)
 	if resource == "insured" {
 		return record, ErrRecordAlreadyExists // cannot update insured (name, policy id). Address and address data are updateable
 	} else if resource == "address" || resource == "addresses" || resource == "insured_addresses" || resource == "insured_address" {
