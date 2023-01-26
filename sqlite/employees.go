@@ -8,9 +8,8 @@ import (
 
 	/* "database/sql" */
 
-	"github.com/nickcoast/timetravel/entity"
+	"github.com/nickcoast/timetravel/entity"	
 )
-
 
 // Create new employee *record*. Used for creating new employee, and for updating
 func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Employee) (record entity.Record, err error) {
@@ -51,7 +50,6 @@ func createEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (rec
 		VALUES (?)
 	`,
 		employee.InsuredId,
-		
 	)
 	if err != nil {
 		return record, FormatError(err)
@@ -100,17 +98,16 @@ func (s *InsuredService) UpdateEmployee(ctx context.Context, employee *entity.Em
 	currentRecord, err := s.Db.GetEmployeeById(ctx, *employee, int64(employee.ID))
 	if err != nil {
 		return record, err
-	}	
+	}
 
-	if (currentRecord.Name == employee.Name &&
+	if currentRecord.Name == employee.Name &&
 		currentRecord.StartDate == employee.StartDate &&
-		currentRecord.EndDate == employee.EndDate) {
-			return record, ErrUpdateMustChangeAValue
-		}
+		currentRecord.EndDate == employee.EndDate {
+		return record, ErrUpdateMustChangeAValue
+	}
 
 	// Update an employee record
 	record, err = updateEmployee(ctx, tx, employee)
-	fmt.Println("InsuredService.UpdateEmployee record:", record)
 	if err != nil && err.Error() == "UNIQUE constraint failed: employees.insured_id, employees.name, employees.start_date, employees.end_date" {
 		fmt.Println("Duplicate key error. Insert failed.")
 		return record, ErrRecordAlreadyExists
@@ -131,7 +128,7 @@ func updateEmployee(ctx context.Context, tx *Tx, employee *entity.Employee) (rec
 	}
 	dataTable := employee.GetDataTableName()
 	result, err := tx.ExecContext(ctx, `
-		INSERT INTO ` + dataTable + ` (
+		INSERT INTO `+dataTable+` (
 			employee_id,
 			name,
 			start_date,

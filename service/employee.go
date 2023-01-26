@@ -45,8 +45,7 @@ func (s *SqliteRecordService) createEmployee(ctx context.Context, timestamp time
 	}
 
 	if ii := record.DataVal("insuredId"); ii != "" {
-		if employee.InsuredId, err = strconv.Atoi(ii); err != nil { // SET INSURED ID
-			fmt.Println("Error converting to int:", err)
+		if employee.InsuredId, err = strconv.Atoi(ii); err != nil { // SET INSURED ID			
 			return newRecord, fmt.Errorf("Problem converting string to int")
 		}
 	} else {
@@ -82,38 +81,35 @@ func (s *SqliteRecordService) createEmployee(ctx context.Context, timestamp time
 }
 func (s *SqliteRecordService) updateEmployee(ctx context.Context, timestamp time.Time, record entity.Record) (newRecord entity.Record, err error) {
 	name := record.DataVal("name")
-	fmt.Println("SqliteRecordService.CreateRecord name:", name)
-
 	startDate := record.DataVal("startDate")
+	if startDate == "" { // TODO: allow missing startDate for updates
+		return newRecord, ErrInvalidRequest
+	}
 	endDate := record.DataVal("endDate")
 	insuredId := record.DataVal("insuredId")
 	if insuredId == "" {
-		fmt.Println("Bad id?, nil. Record:", record)
 		return newRecord, ErrNonexistentParentRecord
 	}
 	insuredIdVal := insuredId
 	insuredIdInt, err := strconv.Atoi(insuredIdVal)
 	if err != nil {
-		fmt.Println("Missing insuredId in record?", record)
 		return newRecord, ErrInvalidRequest
 	}
 	employeeId := record.DataVal("employeeId")
 	employeeIdInt, err := strconv.Atoi(employeeId)
 	if err != nil {
-		return newRecord, ErrInvalidRequest
+		return newRecord, ErrEntityIDInvalid
 	}
 	timestampString := timestamp.Format("2006-01-02T15:04:05Z07:00")
-
+	// TODO: merge DB record with request record so API requests can send just the required fields + update field(s)
 	employee, err := entity.NewEmployee(employeeIdInt, name, startDate, endDate, insuredIdInt, timestampString)
 
 	if err != nil {
-		fmt.Println("Error from entity.NewEmployee. Record:", record, "Employee:", employee)
 		return newRecord, ErrServerError
 	}
 
 	count, err := s.service.CountEmployeeRecords(ctx, *employee)
 	if err != nil {
-		fmt.Println("Count: ", count)
 		return newRecord, ErrServerError
 	} else if count == 0 {
 		return newRecord, ErrRecordDoesNotExist
@@ -121,7 +117,6 @@ func (s *SqliteRecordService) updateEmployee(ctx context.Context, timestamp time
 	newRecord, err = s.service.UpdateEmployee(ctx, employee)
 	ed := newRecord.DataVal("end_date")
 	if ed == "" || len(ed) != 10 || ed == "0001-01-01" {
-		fmt.Println("Bad endDate or error. SKIPPING (not required). End date: ", ed)
 		delete(newRecord.Data, "end_date")
 	}
 	if err != nil {

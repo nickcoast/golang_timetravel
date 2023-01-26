@@ -11,7 +11,7 @@ import (
 )
 
 type API struct {
-	records service.RecordService // memory
+	records service.RecordService         // memory
 	sqlite  service.ObjectResourceService // sqlite
 
 }
@@ -22,7 +22,6 @@ func NewAPI(records service.RecordService, sqlite service.ObjectResourceService)
 
 // generates all api routes
 func (a *API) CreateRoutes(routesV1 *mux.Router, routesV2 *mux.Router) {
-	fmt.Println("help")
 	a.CreateV1Routes(routesV1)
 	a.CreateV2Routes(routesV2)
 }
@@ -33,6 +32,7 @@ func (a *API) CreateV1Routes(routes *mux.Router) {
 }
 func (a *API) CreateV2Routes(routes *mux.Router) {
 	i := routes
+	// i.Path("/help").HandlerFunc(a.GetRoutes).Methods("GET") // TODO
 	i.Path("/{type}/id/{id:[0-9]+}").HandlerFunc(a.GetResourceById).Methods("GET")
 	i.Path("/{type}/new").HandlerFunc(a.Create).Methods("POST")
 	i.Path("/{type}/update").HandlerFunc(a.Update).Methods("PUT")
@@ -102,8 +102,6 @@ func (a *API) updateOrCreate(w http.ResponseWriter, r *http.Request, uOrC update
 			logError(errInWriting)
 			return
 		}
-
-		fmt.Println("newRecord", record)
 		err = writeJSON(w, record, http.StatusOK) //TODO: actually return new record
 		logError(err)
 	} else if uOrC == create {
@@ -119,8 +117,6 @@ func (a *API) updateOrCreate(w http.ResponseWriter, r *http.Request, uOrC update
 			logError(errInWriting)
 			return
 		}
-
-		fmt.Println("newRecord", record)
 		err = writeJSON(w, record, http.StatusOK) //TODO: actually return new record
 		logError(err)
 	} else {

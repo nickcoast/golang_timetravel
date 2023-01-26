@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -24,7 +23,6 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("CreateRecord")
 	ctx := r.Context()
 
 	var body map[string]*string
@@ -44,8 +42,6 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	var requestRecord entity.Record
 	requestRecord.Data = recordMap
-
-	fmt.Println("api.CreateInsured requestRecord", requestRecord)
 	newRecord, err := a.sqlite.CreateResource(ctx, resource, requestRecord)
 
 	if err != nil {
@@ -60,8 +56,6 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 		logError(errInWriting)
 		return
 	}
-
-	fmt.Println("newRecord", newRecord)
 	err = writeJSON(w, newRecord, http.StatusCreated)
 	logError(err)
 }

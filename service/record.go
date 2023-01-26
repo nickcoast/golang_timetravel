@@ -11,7 +11,9 @@ import (
 
 var ErrRecordDoesNotExist = errors.New("Record does not exist. Use 'new' to create.")
 var ErrRecordIDInvalid = errors.New("Record id must >= 0")
+var ErrEntityIDInvalid = errors.New("Operation requires entity id. E.g. 'employeeId' for employee, 'addressId' for address.")
 var ErrRecordAlreadyExists = errors.New("Record already exists. Use 'update' to update")
+var ErrRecordUpdateRequireChange = errors.New("update must modify at least one value")
 var ErrServerError = errors.New("The server experienced a problem")
 var ErrInvalidRequest = errors.New("A required value for this operation was not received")
 var ErrNonexistentParentRecord = errors.New("Cannot create record for non-existent insuredId")

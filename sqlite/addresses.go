@@ -2,8 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"time"
 
 	"github.com/nickcoast/timetravel/entity"
@@ -37,8 +35,7 @@ func createAddress(ctx context.Context, tx *Tx, address *entity.Address) (newRec
 		`	insured_id,` + "\n" +
 		`	record_timestamp` + "\n" +
 		`)` + "\n" +
-		`VALUES (?, ?, ?)`
-	fmt.Println("createAddress: ", address.Address, "insured_id:", address.InsuredId, "timestamp:", address.RecordTimestamp.Unix(), "\nQuery:\n", query)
+		`VALUES (?, ?, ?)`	
 	result, err := tx.ExecContext(ctx, query,
 		address.Address,
 		address.InsuredId,
@@ -76,7 +73,6 @@ func (s *InsuredService) CountInsuredAddresses(ctx context.Context, insured enti
 		`WHERE insured_id = ?
 `
 	result, err := tx.QueryContext(ctx, query, insured.ID)
-	log.Println("GetAddressesForInsured", insured, "Query: ", query)
 	if err != nil {
 		return count, err
 	}
