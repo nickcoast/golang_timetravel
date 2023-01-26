@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -34,8 +33,7 @@ func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if errors.Is(err, service.ErrRecordDoesNotExist) { // record exists
-		err = writeError(w, "Cannot delete. Record does not exist.", http.StatusNotFound)
-		fmt.Println("Yikes")
+		err = writeError(w, "Cannot delete. Record does not exist.", http.StatusNotFound)		
 		return
 	}
 
@@ -43,7 +41,6 @@ func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		err := writeError(w, "Bad request or server error", http.StatusBadRequest)
 		logError(err)
-		fmt.Println("oh no")
 		return
 	}
 	err = writeJSON(w, deletedRecord, http.StatusOK)
