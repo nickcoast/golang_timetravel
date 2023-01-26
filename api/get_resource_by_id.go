@@ -14,7 +14,7 @@ import (
 // GetInsureds retrieves the record.
 func (a *API) GetResourceById(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	insuredObject, err := a.NewInsuredObjectFromRequest(r)		
+	insuredObject, err := a.NewInsuredObjectFromRequest(r)
 	if err != nil {
 		err := writeError(w, err.Error(), http.StatusBadRequest)
 		logError(err)
@@ -35,7 +35,7 @@ func (a *API) GetResourceById(w http.ResponseWriter, r *http.Request) {
 		int(idNumber), // TODO: get id from insuredObject
 	)
 	if err != nil {
-		err := writeError(w, fmt.Sprintf("record of id %v does not exist", idNumber), http.StatusBadRequest)
+		err := writeError(w, fmt.Sprintf("record of id %v does not exist", idNumber), http.StatusNotFound)
 		logError(err)
 		return
 	}

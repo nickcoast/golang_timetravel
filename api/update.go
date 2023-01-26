@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -24,8 +23,6 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 		logError(err)
 		return
 	}
-
-	fmt.Println("UpdateRecord")
 	ctx := r.Context()
 
 	var body map[string]*string
@@ -45,35 +42,49 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	var requestRecord entity.Record
 	requestRecord.Data = recordMap
-
-	fmt.Println("api.UpdateInsured requestRecord:", requestRecord)
 	newRecord, err := a.sqlite.UpdateResource(ctx, resource, requestRecord)
 
 	if err != nil {
-		if err.Error() == service.ErrRecordDoesNotExist.Error() {
-			errInWriting := writeError(w, err.Error(), http.StatusConflict)
+		var status int
+		if err == service.ErrRecordDoesNotExist {
+			status = http.StatusNotFound
+			/* errInWriting := writeError(w, err.Error(), http.StatusNotFound)
 			logError(err)
 			logError(errInWriting)
-			return
-		} else if err.Error() == service.ErrNonexistentParentRecord.Error() {
-			errInWriting := writeError(w, err.Error(), http.StatusConflict)
-			logError(err)
-			logError(errInWriting)
-			return
-		} else if err != nil { // fix/test
-			errInWriting := writeError(w, "Duplicate record. Must change at least one value to update.", http.StatusConflict)
-			logError(err)
-			logError(errInWriting)
-			return
-		} else if err != nil { // delete one of these nil condition checks
-			errInWriting := writeError(w, ErrInternal.Error(), http.StatusInternalServerError)
-			logError(err)
-			logError(errInWriting)
-			return
+			return */
+		} else if err == service.ErrNonexistentParentRecord {
+			status = http.StatusConflict
+		} else if err == service.ErrInvalidRequest || err == service.ErrEntityIDInvalid {
+			status = http.StatusBadRequest
+		} else if err == service.ErrRecordAlreadyExists || err == service.ErrRecordUpdateRequireChange { // test
+			status = http.StatusConflict
+		} else if err != nil {
+			status = http.StatusInternalServerError
 		}
+		errInWriting := writeError(w, err.Error(), status)
+		logError(err)
+		logError(errInWriting)
+		return
 	}
-
-	fmt.Println("newRecord", newRecord)
 	err = writeJSON(w, newRecord, http.StatusOK) //TODO: actually return new record
 	logError(err)
 }
+
+/* if err != nil {
+	var status int
+	if err == service.ErrRecordDoesNotExist {
+		status = http.StatusNotFound
+	} else if err == service.ErrNonexistentParentRecord {
+		status = http.StatusConflict
+	} else if err == service.ErrInvalidRequest {
+		status = http.StatusBadRequest
+	} else if err != service.ErrRecordAlreadyExists { // test
+		status = http.StatusConflict
+	} else if err != nil {
+		status = http.StatusInternalServerError
+	}
+	errInWriting := writeError(w, ErrInternal.Error(), status)
+	logError(err)
+	logError(errInWriting)
+	return
+} */

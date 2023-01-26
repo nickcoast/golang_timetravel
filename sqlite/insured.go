@@ -61,7 +61,7 @@ func (s *InsuredService) FindInsuredByID(ctx context.Context, id int) (insured *
 
 	// Fetch insured
 	record, err := s.Db.GetById(ctx, &entity.Insured{}, int64(id))
-	if err != nil {		
+	if err != nil {
 		return insured, err
 	}
 	insured, ok := record.(*entity.Insured)
@@ -98,8 +98,6 @@ func (s *InsuredService) CreateInsured(ctx context.Context, insured *entity.Insu
 	}
 	return record, tx.Commit()
 }
-
-
 
 // findInsureds returns a list of insureds matching a filter. Also returns a count of
 // total matching insureds which may differ if filter.Limit is set.
@@ -225,4 +223,3 @@ func getMaxPolicyNumber(ctx context.Context, tx *Tx) (max int, err error) {
 	return max, nil
 
 }
-

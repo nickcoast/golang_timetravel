@@ -188,7 +188,7 @@ func (db *DB) GetInsuredById(ctx context.Context, insured entity.Insured, id int
 
 	rows, err := tx.QueryContext(ctx, query) // id(s) are inserted in generateSelectByIds
 	if err != nil {
-		fmt.Println("bad query")
+		fmt.Println("bad query: ", query)
 		return &entity.Insured{}, fmt.Errorf("Query failed")
 	}
 
@@ -258,11 +258,10 @@ func (db *DB) GetEmployeeById(ctx context.Context, employee entity.Employee, id 
 // scanRows. Note: cannot handle empty result set
 func scanRows(ctx context.Context, insuredIfaceObj entity.InsuredInterface, rows *sql.Rows) (map[int]entity.InsuredInterface, error) {
 	insuredIfaceMap := make(map[int]entity.InsuredInterface)
-	switch insuredObj := insuredIfaceObj.(type) {
+	switch insuredIfaceObj.(type) {
 	case *entity.Employee:
 		var recordId int
 		var garbage int
-		fmt.Println("Must use variable insuredObj:", insuredObj)
 		i := 0
 		for rows.Next() {
 			employee := entity.Employee{}
@@ -368,8 +367,6 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 		return insured, ErrRecordDoesNotExist
 	}
 
-	timestamp := date.Unix()
-	fmt.Println("DB.GetByDate timestamp", timestamp)
 	tx, err := db.db.Begin()
 	if err != nil {
 		return insured, err
@@ -436,7 +433,6 @@ func (db *DB) GetByDate(ctx context.Context, insuredIfaceObj entity.InsuredInter
 	if err != nil {
 		return nil, fmt.Errorf("Server Error")
 	}
-	fmt.Println(records)
 	tx.Commit()
 	return records, nil
 }
@@ -458,9 +454,8 @@ func (db *DB) CountInsuredRecordsAtDate(ctx context.Context, tx *sql.Tx, insured
 func generateSelectByDate(insuredIfaceObj entity.InsuredInterface, date time.Time) (query string) {
 	timestamp := date.Unix()
 	query = ""
-	switch insuredObj := insuredIfaceObj.(type) {
+	switch insuredIfaceObj.(type) {
 	case *entity.Employee:
-		fmt.Println("Had to use variable, sorry", insuredObj)
 		query = `SELECT t3.employee_id as id, t3.id AS record_id, t2.insured_id, t3.name, t3.start_date, t3.end_date, t3.record_timestamp, MAX(t3.record_timestamp) as max_timestamp` + "\n" +
 			`FROM insured t1` + "\n" +
 			`JOIN employees t2 ON t1.id = t2.insured_id` + "\n" +
@@ -488,9 +483,8 @@ func generateSelectByDate(insuredIfaceObj entity.InsuredInterface, date time.Tim
 func generateSelectByIds(resourceName entity.InsuredInterface, ids []int64) (query string) {
 	idString := idToString(ids)
 	query = ""
-	switch asdf := resourceName.(type) {
+	switch resourceName.(type) {
 	case *entity.Employee:
-		fmt.Println(asdf)
 		// MAX(record_timestamp) + GROUP BY max_record_timestamp gets us the most recent record in Sqlite.
 		// This kind of trick does not work in MySQL and probably not in Postgresql.
 		query = `SELECT t3.employee_id as id, t3.id AS record_id, t2.insured_id, t3.name, t3.start_date, t3.end_date, t3.record_timestamp, MAX(record_timestamp) AS max_record_timestamp` + "\n" +
@@ -526,7 +520,6 @@ func (db *DB) DeleteById(ctx context.Context, insuredObj entity.InsuredInterface
 	tableName := insuredObj.GetIdentTableName()
 
 	query := `DELETE FROM ` + tableName + ` WHERE id = ?`
-	fmt.Println(query)
 	result, err := tx.ExecContext(ctx, query, id)
 	if err != nil {
 		return insuredObj, fmt.Errorf("Server error.")
@@ -625,20 +618,17 @@ type NullTime time.Time
 func (n *NullTime) Scan(value interface{}) error {
 	valtypes := map[string]int{"int": 0, "int32": 1, "int64": 2}
 	valtype := reflect.TypeOf(value).String()
-	if val, ok := valtypes[valtype]; ok {
+	if _, ok := valtypes[valtype]; ok {
 		if int64val, ok := value.(int64); ok {
 			*(*time.Time)(n) = time.Unix(int64val, 0).UTC()
-			fmt.Println("Int 64 to time")
 			return nil
 		} else if intval, ok := value.(int32); ok {
 			int64val := int64(intval)
 			*(*time.Time)(n) = time.Unix(int64val, 0).UTC()
-			fmt.Println("Int 32 to time")
 			return nil
 		} else if intval, ok := value.(int); ok {
 			int64val := int64(intval)
 			*(*time.Time)(n) = time.Unix(int64val, 0).UTC()
-			fmt.Println("int to time", val, valtype, value)
 			return nil
 		} else {
 			fmt.Println("not an integer type")

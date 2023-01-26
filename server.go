@@ -111,7 +111,7 @@ func NewMain() *Main {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-	log.Printf("listening on %s", address)	
+	log.Printf("listening on %s", address)
 	fmt.Println("Main NewMain after ListenAndServe")
 
 	db := sqlite.NewDB("file:main.db?cache=shared&mode=rwc&locking_mode=NORMAL&_fk=1&synchronous=2")

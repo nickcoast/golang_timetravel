@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -80,14 +79,11 @@ func (s *SqliteRecordService) CreateResource(ctx context.Context, resource strin
 	} else if resource == "address" || resource == "insured_addresses" || resource == "addresses" {
 		return s.createAddress(ctx, timestamp, record)
 	}
-	fmt.Println("You are here")
-
 	if err != nil {
 		return newRecord, err
 		// TODO: May want to use this here later
 		//return ErrRecordAlreadyExists
 	}
-	fmt.Println("here we are again")
 	return newRecord, nil
 }
 
@@ -103,9 +99,12 @@ func (s *SqliteRecordService) UpdateResource(ctx context.Context, resource strin
 	} else if resource == "address" || resource == "addresses" || resource == "insured_addresses" || resource == "insured_address" {
 		return s.updateAddress(ctx, timestamp, record)
 	} else if resource == "employee" || resource == "employees" {
-		return s.updateEmployee(ctx, timestamp, record)
+		updateRecord, err := s.updateEmployee(ctx, timestamp, record)
+		if err == sqlite.ErrUpdateMustChangeAValue {
+			err = ErrRecordUpdateRequireChange
+		}
+		return updateRecord, err
 	}
-	fmt.Println("here we are again")
 	return updateRecord, ErrRecordAlreadyExists
 }
 
@@ -141,7 +140,6 @@ func (s *SqliteRecordService) DeleteResource(ctx context.Context, insuredObj ent
 
 func (s *SqliteRecordService) createInsured(ctx context.Context, timestamp time.Time, record entity.Record) (newRecord entity.Record, err error) {
 	name := record.DataVal("name")
-	fmt.Println("SqliteRecordService.CreateRecord name:", name)
 	var insured *entity.Insured
 	insured = &entity.Insured{}
 	insured.Name = name
@@ -151,7 +149,6 @@ func (s *SqliteRecordService) createInsured(ctx context.Context, timestamp time.
 	if err != nil {
 		return entity.Record{}, err
 	}
-	fmt.Println("here we are again")
 	return newRecord, nil
 }
 
@@ -165,11 +162,10 @@ func (s *SqliteRecordService) GetResourceByDate(ctx context.Context, insuredIfac
 		return nil, ErrNonexistentParentRecord
 	}
 
-	record, err := s.service.Db.GetByDate(ctx, insuredIfaceObj , naturalKey, insuredId, dateValid)
+	record, err := s.service.Db.GetByDate(ctx, insuredIfaceObj, naturalKey, insuredId, dateValid)
 	if err != nil {
 		return nil, ErrServerError
 	}
-	fmt.Println("service.SqliteRecordService.GetRecordByDate: records", record)
 	for _, r := range record {
 		return r, nil
 	}
