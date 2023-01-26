@@ -18,13 +18,10 @@ func (s *InsuredService) CreateEmployee(ctx context.Context, employee *entity.Em
 		return record, err
 	}
 	defer tx.Rollback()
-
-	fmt.Println("InsuredService.CreateEmployee employee:", employee)
+	
 	// Create a new employee record
 	record, err = createEmployee(ctx, tx, employee)
-	fmt.Println("InsuredService.CreateEmployee record:", record)
 	if err != nil && err.Error() == "UNIQUE constraint failed: employees.insured_id, employees.name, employees.start_date, employees.end_date" {
-		fmt.Println("Duplicate key error. Insert failed.")
 		return record, ErrRecordAlreadyExists
 	}
 	if err != nil { // any other error
@@ -109,13 +106,11 @@ func (s *InsuredService) UpdateEmployee(ctx context.Context, employee *entity.Em
 	// Update an employee record
 	record, err = updateEmployee(ctx, tx, employee)
 	if err != nil && err.Error() == "UNIQUE constraint failed: employees.insured_id, employees.name, employees.start_date, employees.end_date" {
-		fmt.Println("Duplicate key error. Insert failed.")
 		return record, ErrRecordAlreadyExists
 	} else if err != nil { // any other error
 		return record, err
 	}
 	if err = tx.Commit(); err != nil {
-		fmt.Println("jkl")
 		return record, err
 	}
 	return record, nil
