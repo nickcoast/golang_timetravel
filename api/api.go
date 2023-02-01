@@ -37,6 +37,8 @@ func (a *API) CreateV2Routes(routes *mux.Router) {
 	i.Path("/{type}/new").HandlerFunc(a.Create).Methods("POST")
 	i.Path("/{type}/update").HandlerFunc(a.Update).Methods("PUT")
 
+	i.Path("/{type}/gethistory/{id:[0-9]+}").HandlerFunc(a.GetHistoryById).Methods("GET")
+
 	// Permanently deletes record (insured, employee, or insured address)
 	// Should be allowed to supervisors in case of erroneous data or FBI investigations
 	// TODO: force consumer to confirm before allowing permanent deletion.

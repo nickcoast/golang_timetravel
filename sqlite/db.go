@@ -149,9 +149,38 @@ func (db *DB) migrateFile(name string) error {
 	return tx.Commit()
 }
 
+func (db *DB) GetHistoryById(ctx context.Context, insuredObj entity.InsuredInterface, id int64) (map[int]entity.InsuredInterface, error) {
+	if id <= 0 {
+		return nil, ErrRecordDoesNotExist
+	}
+	tx, err := db.db.Begin()
+	defer tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	switch obj := insuredObj.(type) {
+	case *entity.Employee:
+		return db.getHistoryEmployee(ctx, tx, *obj, id)		
+	}
+	return nil, fmt.Errorf("Server error")
+}
+
+
+func (db *DB) getHistoryEmployee(ctx context.Context, tx *Tx, employee entity.Employee, id int64) (map[int]entity.InsuredInterface, error) {
+	query := generateSelectHistory(&employee, id)
+	
+	switch obj := insuredObj.(type) {
+	case *entity.Employee:
+		return db.getHistoryEmployee(ctx, *obj, id)		
+	}
+	return nil, fmt.Errorf("Server error")
+}
+
 // TODO: change tableName to entity.InsuredInterface
 func (db *DB) GetById(ctx context.Context, insuredObj entity.InsuredInterface, id int64) (record entity.InsuredInterface, err error) {
-	if id == 0 {
+	if id <= 0 {
 		return record, ErrRecordDoesNotExist
 	}
 	tx, err := db.db.Begin()
@@ -479,11 +508,24 @@ func generateSelectByDate(insuredIfaceObj entity.InsuredInterface, date time.Tim
 	return query
 }
 
+func generateSelectHistory(insuredObj entity.InsuredInterface, id int64) (query string) {
+	idString := strconv.Itoa(int(id))
+	query = ""
+	switch insuredObj.(type) {
+	case *entity.Employee:
+		query = `SELECT t2.*, t1.insured_id
+		FROM employees_records t2 JOIN employees t1 ON t2.employee_id = t1.id
+		WHERE t2.employee_id = ` + idString + `
+		ORDER BY t2.record_timestamp ASC`
+	}
+	return query
+}
+
 // generateSelectByIds can return multiple records
-func generateSelectByIds(resourceName entity.InsuredInterface, ids []int64) (query string) {
+func generateSelectByIds(insuredObj entity.InsuredInterface, ids []int64) (query string) {
 	idString := idToString(ids)
 	query = ""
-	switch resourceName.(type) {
+	switch insuredObj.(type) {
 	case *entity.Employee:
 		// MAX(record_timestamp) + GROUP BY max_record_timestamp gets us the most recent record in Sqlite.
 		// This kind of trick does not work in MySQL and probably not in Postgresql.

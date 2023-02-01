@@ -16,32 +16,25 @@ import (
 type ObjectResourceService interface {
 
 	// GetResource will retrieve an resource.
-	GetResourceById(ctx context.Context, resource entity.InsuredInterface, id int) (entity.InsuredInterface, error) // TODO: change resource from string to Struct
-	//GetResourceById(ctx context.Context, insuredType entity.InsuredInterface, id int64) (entity.InsuredInterface, error) // TODO: change resource from string to Struct
-
+	GetResourceById(ctx context.Context, resource entity.InsuredInterface, id int) (entity.InsuredInterface, error)
 	// CreateResource will insert a new resource.
 	//
 	// If it a resource with that id already exists it will fail.
 	CreateResource(ctx context.Context, resource string, record entity.Record) (entity.Record, error)
-	//CreateResource(ctx context.Context, insuredType entity.InsuredInterface) (entity.InsuredInterface, error)
 
 	// UpdateResource will change the internal `Map` values of the resource if they exist.
 	// if the update[key] is null it will delete that key from the resource's Map.
 	//
-	// UpdateResource will error if id <= 0 or the resource does not exist with that id.
-
+	// error if id <= 0 or the resource does not exist with that id.
 	UpdateResource(ctx context.Context, resource string, record entity.Record) (entity.Record, error)
-	//UpdateResource(ctx context.Context, insuredType entity.InsuredInterface) ( entity.InsuredInterface, error)
-
-	//DeleteResource(ctx context.Context, resource string, id int64) (entity.Record, error)
 	DeleteResource(ctx context.Context, insuredType entity.InsuredInterface, id int64) (entity.InsuredInterface, error)
-
-	//GetResourceByDate(ctx context.Context, resource string, naturalKey string, insuredId int64, date time.Time) (records entity.Record, err error)
+	
 	// TODO: remove natural key. Maybe insuredId
 	GetResourceByDate(ctx context.Context, insuredIfaceObj entity.InsuredInterface, naturalKey string, insuredId int64, date time.Time) (entity.InsuredInterface, error)
 
 	GetInsuredByDate(ctx context.Context, insuredId int64, date time.Time) (insured entity.Insured, err error)
-	//GetInsuredByDate(ctx context.Context, insuredType entity.InsuredInterface, date time.Time) (entity.InsuredInterface, error)
+
+	GetResourceHistory(ctx context.Context, resource entity.InsuredInterface, id int64) (map[int]entity.InsuredInterface, error)
 }
 
 var _ ObjectResourceService = (*SqliteRecordService)(nil)
@@ -106,6 +99,26 @@ func (s *SqliteRecordService) UpdateResource(ctx context.Context, resource strin
 }
 
 func (s *SqliteRecordService) GetResourceById(ctx context.Context, resource entity.InsuredInterface, id int) (entity.InsuredInterface, error) {
+	if id == 0 {
+		return nil, ErrRecordDoesNotExist
+	}
+	e, err := s.service.Db.GetById(ctx, resource, int64(id))
+	if err != nil || e.GetId() == 0 {
+		return nil, ErrRecordDoesNotExist
+	}
+	// TODO: make sure Marshal handles this if needed
+	/* ed := e.DataVal("end_date") // check "empty" end date
+	if ed != "" && ed == "0001-01-01" {
+		if ed == "0001-01-01" {
+			e.Data["end_date"] = "None"
+		}
+	} */
+
+	return e, nil
+}
+
+
+func (s *SqliteRecordService) GetResourceHistory(ctx context.Context, resource entity.InsuredInterface, id int64) (map[int]entity.InsuredInterface, error) {
 	if id == 0 {
 		return nil, ErrRecordDoesNotExist
 	}

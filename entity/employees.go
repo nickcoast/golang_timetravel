@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"container/list"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -23,6 +24,11 @@ type Employee struct {
 
 	// Timestamps for employee creation & last update.
 	RecordTimestamp time.Time `json:"recordTimestamp"`
+}
+
+
+type EmployeeCollection struct {
+	EmployeeList *list.List
 }
 
 var _ InsuredInterface = (*Employee)(nil)
