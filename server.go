@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/nickcoast/timetravel/api"
 	"github.com/nickcoast/timetravel/entity"
@@ -62,6 +63,7 @@ type Main struct {
 	ConfigPath string
 	DB         *sqlite.DB
 	HTTPServer *http.Server
+	Router     *mux.Router
 
 	//InsuredService entity.InsuredService
 }
@@ -104,9 +106,25 @@ func NewMain() *Main {
 	})
 	api.CreateRoutes(apiRoute, apiRouteV2)
 
+	//os.Setenv("ORIGIN_ALLOWED", "https://localhost:3000")
+	os.Setenv("ORIGIN_ALLOWED", "*")
+	oG := os.Getenv("ORIGIN_ALLOWED")
+	originsOk := handlers.AllowedOrigins([]string{oG})
+	//originsOk := handlers.AllowedOrigins([]string{os.Getenv("ORIGIN_ALLOWED")})
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
+	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
+
+	hh := handlers.CORS(originsOk, headersOk, methodsOk)(router)
+	/* router, ok := hh.(*mux.Router)
+	if !ok {
+		panic("Fucked!")
+	} */
+	// router, err := router.(*mux.Router) handlers.CORS(originsOk, headersOk, methodsOk)(router)
+	//http.ListenAndServe(":"+os.Getenv("PORT"), handlers.CORS(originsOk, headersOk, methodsOk)(router))
+
 	address := "127.0.0.1:8000"
 	srv := &http.Server{
-		Handler:      router,
+		Handler:      hh,
 		Addr:         address,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
@@ -142,12 +160,7 @@ func (m *Main) Run(ctx context.Context) (err error) {
 	}
 	fmt.Println("Main.Run after m.DB.Open. m.DB.DSN", m.DB.DSN)
 
-	// Instantiate SQLite-backed services.
-	//insuredService := sqlite.NewInsuredService(m.DB)
-
-	// Attach insured service to Main for testing.
-	//m.InsuredService = insuredService
-
+	//go func() { log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), handlers.CORS(originsOk, headersOk, methodsOk)(m.Router))) }
 	go func() { log.Fatal(m.HTTPServer.ListenAndServe()) }()
 	fmt.Println("Server started in Main.Run")
 

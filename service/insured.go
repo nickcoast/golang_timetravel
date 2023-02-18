@@ -42,6 +42,10 @@ type ObjectResourceService interface {
 
 	GetInsuredByDate(ctx context.Context, insuredId int64, date time.Time) (insured entity.Insured, err error)
 	//GetInsuredByDate(ctx context.Context, insuredType entity.InsuredInterface, date time.Time) (entity.InsuredInterface, error)
+
+	GetAll(ctx context.Context, entityType entity.InsuredInterface)  (map[int]entity.InsuredInterface, error)
+
+	GetAllByEntityId(ctx context.Context, entityType entity.InsuredInterface, entityId int64) (map[int]entity.InsuredInterface, error)
 }
 
 var _ ObjectResourceService = (*SqliteRecordService)(nil)
@@ -167,4 +171,12 @@ func (s *SqliteRecordService) GetResourceByDate(ctx context.Context, insuredIfac
 		return r, nil
 	}
 	return nil, ErrRecordDoesNotExist
+}
+
+func (s *SqliteRecordService) GetAll(ctx context.Context, entityType entity.InsuredInterface) (map[int]entity.InsuredInterface, error) {
+	return s.service.Db.GetAll(ctx, entityType)
+}
+
+func (s *SqliteRecordService) GetAllByEntityId(ctx context.Context, entityType entity.InsuredInterface, entityId int64) (map[int]entity.InsuredInterface, error) {
+	return s.service.Db.GetAllByEntityId(ctx, entityType, entityId)
 }

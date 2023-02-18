@@ -33,6 +33,8 @@ func (a *API) CreateV1Routes(routes *mux.Router) {
 func (a *API) CreateV2Routes(routes *mux.Router) {
 	i := routes
 	// i.Path("/help").HandlerFunc(a.GetRoutes).Methods("GET") // TODO
+	i.Path("/{type}").HandlerFunc(a.GetResource).Methods("GET")
+	i.Path("/{type}/history/{id:[0-9]+}").HandlerFunc(a.GetResourceRecords).Methods("GET")
 	i.Path("/{type}/id/{id:[0-9]+}").HandlerFunc(a.GetResourceById).Methods("GET")
 	i.Path("/{type}/new").HandlerFunc(a.Create).Methods("POST")
 	i.Path("/{type}/update").HandlerFunc(a.Update).Methods("PUT")

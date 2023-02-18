@@ -302,6 +302,7 @@ func scanRows(ctx context.Context, insuredIfaceObj entity.InsuredInterface, rows
 			return nil, fmt.Errorf("rowsErr: %v", err)
 		}
 	case *entity.Insured:
+		//var garbage int
 		i := 0
 		for rows.Next() {
 			insured := entity.Insured{}
@@ -309,6 +310,7 @@ func scanRows(ctx context.Context, insuredIfaceObj entity.InsuredInterface, rows
 				&insured.Name,
 				&insured.PolicyNumber,
 				(*NullTime)(&insured.RecordTimestamp),
+				//&garbage, // same as record_timestamp
 			); err != nil {
 				return nil, err
 			}
@@ -403,6 +405,36 @@ func (db *DB) GetInsuredByDate(ctx context.Context, insuredId int64, date time.T
 	return *insuredObj, nil
 }
 
+func (db *DB) GetAll(ctx context.Context, entityType entity.InsuredInterface) (records map[int]entity.InsuredInterface, err error) {
+	query := generateSelectAll(entityType)
+	tx, err := db.db.Begin()
+	if err != nil {
+		return records, err
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.QueryContext(ctx, query)
+	if err != nil {
+		return records, err
+	}
+	return scanRows(ctx, entityType, rows)
+}
+
+func (db *DB) GetAllByEntityId(ctx context.Context, entityType entity.InsuredInterface, entityId int64) (records map[int]entity.InsuredInterface, err error) {
+	query := generateSelectAllRecordsByEntityId(entityType, entityId)
+	tx, err := db.db.Begin()
+	if err != nil {
+		return records, err
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.QueryContext(ctx, query, entityId)
+	if err != nil {
+		return records, err
+	}
+	return scanRows(ctx, entityType, rows)
+}
+
 // TODO: can remove naturalKey from signature?
 func (db *DB) GetByDate(ctx context.Context, insuredIfaceObj entity.InsuredInterface, naturalKey string, insuredId int64, date time.Time) (records map[int]entity.InsuredInterface, err error) {
 	id := insuredId
@@ -449,6 +481,41 @@ func (db *DB) CountInsuredRecordsAtDate(ctx context.Context, tx *sql.Tx, insured
 		return 0, err
 	}
 	return count, nil
+}
+
+func generateSelectAll(entityType entity.InsuredInterface) (query string) {
+	query = ""
+	switch entityType.(type) {
+	case *entity.Employee:
+		query = `SELECT t3.employee_id as id, t3.id AS record_id, t2.insured_id, t3.name, t3.start_date, t3.end_date, t3.record_timestamp, MAX(t3.record_timestamp) as max_timestamp` + "\n" +
+			`FROM employees t2` + "\n" +
+			`JOIN employees_records t3 ON t2.id = t3.employee_id` + "\n" +
+			`GROUP BY t2.id`
+	case *entity.Insured:
+		query = `SELECT t1.*` + "\n" +
+			`FROM insured t1`
+	case *entity.Address:
+		query = `SELECT t2.*, t2.record_timestamp as max_timestamp` + "\n" +
+			`FROM insured_addresses_records t2`
+	}
+	return query
+}
+func generateSelectAllRecordsByEntityId(entityType entity.InsuredInterface, entityId int64) (query string) {
+	query = ""
+	switch entityType.(type) {
+	case *entity.Employee:
+		query = `SELECT t3.employee_id as id, t3.id AS record_id, t2.insured_id, t3.name, t3.start_date, t3.end_date, t3.record_timestamp, t3.record_timestamp as max_timestamp` + "\n" + // garb
+			`FROM employees t2` + "\n" +
+			`JOIN employees_records t3 ON t2.id = t3.employee_id` + "\n" +
+			`WHERE t3.employee_id = ?`
+	case *entity.Insured:
+		query = generateSelectAll(&entity.Insured{}) + "\n" +
+			`WHERE t1.id = ?`
+	case *entity.Address:
+		query = generateSelectAll(&entity.Address{}) + "\n" +
+			`WHERE t2.id = ?`
+	}
+	return query
 }
 
 func generateSelectByDate(insuredIfaceObj entity.InsuredInterface, date time.Time) (query string) {
